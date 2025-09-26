@@ -173,18 +173,24 @@ export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
                 startPage={currentPage}
                 style={{ margin: "0 auto" }}
               >
-                {Array.from({ length: numPages }, (_, i) => (
-                  <PagePaper key={i}>
-                    <Page
-                      pageNumber={i + 1}
-                      width={pageWidth}
-                      renderTextLayer={false}
-                      renderAnnotationLayer={false}
-                      onLoadSuccess={i === 0 ? onFirstPageLoad : undefined}
-                      className="book-page"
-                    />
-                  </PagePaper>
-                ))}
+                {Array.from({ length: numPages }, (_, i) => {
+                  if (i < currentPage - 2 || i > currentPage + 2) {
+                    return <PagePaper key={i} />; // placeholder vacío
+                  }
+                  return (
+                    <PagePaper key={i}>
+                      <Page
+                        pageNumber={i + 1}
+                        width={pageWidth}
+                        renderTextLayer={false}
+                        renderAnnotationLayer={false}
+                        onLoadSuccess={i === 0 ? onFirstPageLoad : undefined}
+                        className="book-page"
+                      />
+                    </PagePaper>
+                  );
+                })}
+
               </HTMLFlipBook>
             )}
           </Document>
