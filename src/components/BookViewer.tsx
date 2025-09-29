@@ -13,14 +13,16 @@ import workerSrc from "pdfjs-dist/build/pdf.worker.min.js?url";
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 
+
 // ---------- Props ----------
 interface PagePaperProps {
-  children: ReactNode;
+  children?: ReactNode; // 👈 aquí lo volvemos opcional
 }
 
 interface BookViewerProps {
   file?: string;
 }
+
 
 // ---------- PagePaper ----------
 const PagePaper = forwardRef<HTMLDivElement, PagePaperProps>(
@@ -58,6 +60,7 @@ export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
     setIsLoaded(true);
     setCurrentPage(0);
   };
+  
 
   const doResize = () => {
     if (!shellRef.current || !viewerRef.current) return;
@@ -103,21 +106,50 @@ export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
 
   // Navegación
   const goPrev = () => {
-    (flipRef.current?.pageFlip() as PageFlip)?.flipPrev();
-  };
-  const goNext = () => {
-    (flipRef.current?.pageFlip() as PageFlip)?.flipNext();
-  };
+  flipRef.current?.pageFlip().flipPrev();
+};
+
+const goNext = () => {
+  flipRef.current?.pageFlip().flipNext();
+};
+
 
   const onFlip = (e: { data: number }) => setCurrentPage(e.data);
+  //Girar telefono 
+  const [showRotateHint, setShowRotateHint] = useState(false);
+
+  useEffect(() => {
+  const mm = window.matchMedia("(orientation: portrait)");
+  const applyOrientation = () => {
+    if (mm.matches) {
+      setShowRotateHint(true);
+      // ocultar después de 2 segundos
+      setTimeout(() => setShowRotateHint(false), 2000);
+    } else {
+      setShowRotateHint(false);
+    }
+    setIsPortrait(mm.matches);
+  };
+
+  applyOrientation();
+  mm.addEventListener("change", applyOrientation);
+
+  return () => {
+    mm.removeEventListener("change", applyOrientation);
+  };
+}, []);
+
+
 
   return (
     <div className="book-shell" ref={shellRef}>
-      {isPortrait && (
-        <div className="rotate-msg">
-          <span>Mejor horizontal. Ajusté el libro para verse apaisado.</span>
+      {showRotateHint && (
+        <div className="rotate-hint">
+          <div className="rotate-icon">📱</div>
+          <p className="rotate-text">Gira tu teléfono</p>
         </div>
       )}
+
 
       <div
         className={`flip-wrap ${isPortrait ? "force-landscape" : ""}`}
@@ -128,24 +160,13 @@ export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
         }}
       >
         {/* Flechas */}
-        <button
-          className={`nav-arrow nav-arrow-left${
-            currentPage === 0 ? " disabled" : ""
-          }`}
-          onClick={goPrev}
-          disabled={currentPage === 0}
-        >
-          ←
-        </button>
-        <button
-          className={`nav-arrow nav-arrow-right${
-            numPages && currentPage === numPages - 1 ? " disabled" : ""
-          }`}
-          onClick={goNext}
-          disabled={numPages !== null && currentPage === numPages - 1}
-        >
-          →
-        </button>
+        <button className="nav-arrow nav-arrow-left" onClick={goPrev}>
+  ←
+</button>
+<button className="nav-arrow nav-arrow-right" onClick={goNext}>
+  →
+</button>
+
 
         <div className="book-viewer-pdf">
           <Document
@@ -170,7 +191,7 @@ export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
                 clickEventForward={true}
                 showPageCorners={false}
                 onFlip={onFlip}
-                startPage={currentPage}
+                //startPage={currentPage}
                 style={{ margin: "0 auto" }}
               >
                 {Array.from({ length: numPages }, (_, i) => {

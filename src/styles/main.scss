@@ -244,3 +244,48 @@
   --scale: min(var(--sx), var(--sy));
   scale: var(--scale);
 }
+
+
+/* ========================
+   Aviso girar teléfono
+======================== */
+.rotate-hint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  padding: 16px 20px;
+  border-radius: 14px;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: fadeIn 0.4s ease-in-out;
+}
+
+.rotate-icon {
+  font-size: 2.5rem;
+  margin-bottom: 8px;
+  animation: rotatePhone 2.5s infinite ease-in-out;
+}
+
+.rotate-text {
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+/* Animaciones */
+@keyframes rotatePhone {
+  0%   { transform: rotate(0deg); }
+  25%  { transform: rotate(90deg); }
+  50%  { transform: rotate(0deg); }
+  75%  { transform: rotate(-90deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
