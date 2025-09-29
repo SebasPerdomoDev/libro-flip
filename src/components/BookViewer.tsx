@@ -6,25 +6,21 @@ import {
 } from "react";
 import type { ReactNode } from "react";
 import HTMLFlipBook from "react-pageflip";
-import type { PageFlip } from "react-pageflip";
 import { Document, Page, pdfjs } from "react-pdf";
 import type { PDFPageProxy } from "pdfjs-dist";
 import workerSrc from "pdfjs-dist/build/pdf.worker.min.js?url";
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 
-
-// ---------- Props ----------
+/* ---------- Props ---------- */
 interface PagePaperProps {
-  children?: ReactNode; // 👈 aquí lo volvemos opcional
+  children?: ReactNode;
 }
-
 interface BookViewerProps {
   file?: string;
 }
 
-
-// ---------- PagePaper ----------
+/* ---------- PagePaper ---------- */
 const PagePaper = forwardRef<HTMLDivElement, PagePaperProps>(
   ({ children }, ref) => (
     <div ref={ref} className="page-wrapper">
@@ -33,11 +29,9 @@ const PagePaper = forwardRef<HTMLDivElement, PagePaperProps>(
   )
 );
 
-// ---------- Componente principal ----------
+/* ---------- Componente principal ---------- */
 export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
-  // 👇 usamos any para que no falle TS con react-pageflip
   const flipRef = useRef<any>(null);
-
   const shellRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
 
@@ -47,6 +41,7 @@ export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
   const [currentPage, setCurrentPage] = useState<number>(0);
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [isPortrait, setIsPortrait] = useState<boolean>(false);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
 
   // medir relación real del PDF
   const onFirstPageLoad = (page: PDFPageProxy) => {
@@ -60,7 +55,6 @@ export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
     setIsLoaded(true);
     setCurrentPage(0);
   };
-  
 
   const doResize = () => {
     if (!shellRef.current || !viewerRef.current) return;
@@ -79,67 +73,89 @@ export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
       height = availH;
       width = Math.round(height / aspect);
     }
-
     setPageWidth(width);
   };
 
+  // detectar orientación y móvil
   useEffect(() => {
-    const mm = window.matchMedia("(orientation: portrait)");
-    const applyOrientation = () => setIsPortrait(mm.matches);
+    const mmPortrait = window.matchMedia("(orientation: portrait)");
+    const mmMobile = window.matchMedia("(max-width: 600px)");
+
+    const applyOrientation = () => setIsPortrait(mmPortrait.matches);
+    const applyMobile = () => setIsMobile(mmMobile.matches);
+
     applyOrientation();
-    mm.addEventListener("change", applyOrientation);
+    applyMobile();
+
+    mmPortrait.addEventListener("change", applyOrientation);
+    mmMobile.addEventListener("change", applyMobile);
 
     doResize();
     window.addEventListener("resize", doResize);
 
     return () => {
-      mm.removeEventListener("change", applyOrientation);
+      mmPortrait.removeEventListener("change", applyOrientation);
+      mmMobile.removeEventListener("change", applyMobile);
       window.removeEventListener("resize", doResize);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aspect]);
 
   useEffect(() => {
     doResize();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPortrait]);
 
-  const pageHeight = Math.round(pageWidth * aspect);
+  // dimensiones base
+  const pageHeightRaw = Math.round(pageWidth * aspect);
+  const mobileScale = isMobile ? 0.8 : 1;
+  const bookW = Math.round(pageWidth * mobileScale);
+  const bookH = Math.round(pageHeightRaw * mobileScale);
 
   // Navegación
   const goPrev = () => {
-  flipRef.current?.pageFlip().flipPrev();
-};
-
-const goNext = () => {
-  flipRef.current?.pageFlip().flipNext();
-};
-
+    const api = flipRef.current?.pageFlip?.();
+    if (api && currentPage > 0) api.flipPrev();
+  };
+  const goNext = () => {
+    const api = flipRef.current?.pageFlip?.();
+    if (api && numPages && currentPage < numPages - 1) api.flipNext();
+  };
 
   const onFlip = (e: { data: number }) => setCurrentPage(e.data);
-  //Girar telefono 
+
+  // estado de flechas
+  const canGoPrev = currentPage > 0;
+  const canGoNext = numPages ? currentPage < numPages - 1 : false;
+
+  // Girar teléfono
   const [showRotateHint, setShowRotateHint] = useState(false);
-
   useEffect(() => {
-  const mm = window.matchMedia("(orientation: portrait)");
-  const applyOrientation = () => {
-    if (mm.matches) {
-      setShowRotateHint(true);
-      // ocultar después de 2 segundos
-      setTimeout(() => setShowRotateHint(false), 2000);
-    } else {
-      setShowRotateHint(false);
+    const mm = window.matchMedia("(orientation: portrait)");
+    const applyOrientation = () => {
+      if (mm.matches) {
+        setShowRotateHint(true);
+        setTimeout(() => setShowRotateHint(false), 1600);
+      } else {
+        setShowRotateHint(false);
+      }
+      setIsPortrait(mm.matches);
+    };
+    applyOrientation();
+    mm.addEventListener("change", applyOrientation);
+    return () => mm.removeEventListener("change", applyOrientation);
+  }, []);
+
+  // 👇 Forzar siempre modo single page centrado
+  useEffect(() => {
+    if (isLoaded && flipRef.current) {
+      const api = flipRef.current.pageFlip();
+      if (api) {
+        api.setOrientation("portrait"); // truco: fuerza single page
+      }
     }
-    setIsPortrait(mm.matches);
-  };
-
-  applyOrientation();
-  mm.addEventListener("change", applyOrientation);
-
-  return () => {
-    mm.removeEventListener("change", applyOrientation);
-  };
-}, []);
-
-
+  }, [isLoaded]);
+  
 
   return (
     <div className="book-shell" ref={shellRef}>
@@ -150,24 +166,14 @@ const goNext = () => {
         </div>
       )}
 
-
       <div
         className={`flip-wrap ${isPortrait ? "force-landscape" : ""}`}
         ref={viewerRef}
         style={{
-          ["--book-w" as any]: `${pageWidth}px`,
-          ["--book-h" as any]: `${pageHeight}px`,
+          ["--book-w" as any]: `${bookW}px`,
+          ["--book-h" as any]: `${bookH}px`,
         }}
       >
-        {/* Flechas */}
-        <button className="nav-arrow nav-arrow-left" onClick={goPrev}>
-  ←
-</button>
-<button className="nav-arrow nav-arrow-right" onClick={goNext}>
-  →
-</button>
-
-
         <div className="book-viewer-pdf">
           <Document
             file={file}
@@ -176,43 +182,63 @@ const goNext = () => {
             loading={<div className="p-4 text-center">Cargando PDF…</div>}
           >
             {isLoaded && numPages && (
-              <HTMLFlipBook
-                ref={flipRef}
-                className="book shadow"
-                width={pageWidth}
-                height={pageHeight}
-                singlePage={true}
-                size="fixed"
-                drawShadow
-                maxShadowOpacity={0.15}
-                useMouseEvents
-                mobileScrollSupport
-                disableFlipByClick={true}
-                clickEventForward={true}
-                showPageCorners={false}
-                onFlip={onFlip}
-                //startPage={currentPage}
-                style={{ margin: "0 auto" }}
-              >
-                {Array.from({ length: numPages }, (_, i) => {
-                  if (i < currentPage - 2 || i > currentPage + 2) {
-                    return <PagePaper key={i} />; // placeholder vacío
-                  }
-                  return (
-                    <PagePaper key={i}>
-                      <Page
-                        pageNumber={i + 1}
-                        width={pageWidth}
-                        renderTextLayer={false}
-                        renderAnnotationLayer={false}
-                        onLoadSuccess={i === 0 ? onFirstPageLoad : undefined}
-                        className="book-page"
-                      />
-                    </PagePaper>
-                  );
-                })}
+              <>
+                {numPages > 1 && (
+                  <>
+                    <button
+                      className="nav-arrow nav-arrow-left"
+                      onClick={goPrev}
+                      disabled={!canGoPrev}
+                    >
+                      ←
+                    </button>
+                    <button
+                      className="nav-arrow nav-arrow-right"
+                      onClick={goNext}
+                      disabled={!canGoNext}
+                    >
+                      →
+                    </button>
+                  </>
+                )}
 
-              </HTMLFlipBook>
+                <HTMLFlipBook
+                  ref={flipRef}
+                  className="book shadow"
+                  width={bookW}
+                  height={bookH}
+                  singlePage={true}
+                  usePortrait={false}
+                  size="fixed"
+                  drawShadow
+                  maxShadowOpacity={0.15}
+                  useMouseEvents
+                  mobileScrollSupport
+                  disableFlipByClick={true}
+                  clickEventForward={true}
+                  showPageCorners={false}
+                  onFlip={onFlip}
+                  style={{ margin: "0 auto" }}
+                >
+                  {Array.from({ length: numPages }, (_, i) => {
+                    if (i < currentPage - 2 || i > currentPage + 2) {
+                      return <PagePaper key={i} />;
+                    }
+                    return (
+                      <PagePaper key={i}>
+                        <Page
+                          pageNumber={i + 1}
+                          width={bookW}
+                          renderTextLayer={false}
+                          renderAnnotationLayer={false}
+                          onLoadSuccess={i === 0 ? onFirstPageLoad : undefined}
+                          className="book-page"
+                        />
+                      </PagePaper>
+                    );
+                  })}
+                </HTMLFlipBook>
+              </>
             )}
           </Document>
         </div>
