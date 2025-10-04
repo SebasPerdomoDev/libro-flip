@@ -10,6 +10,7 @@ import HTMLFlipBook from "react-pageflip";
 import { Document, Page, pdfjs } from "react-pdf";
 import type { PDFPageProxy } from "pdfjs-dist";
 import workerSrc from "pdfjs-dist/build/pdf.worker.min.js?url";
+import html2canvas from "html2canvas";
 import React from "react";
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
@@ -31,6 +32,7 @@ const PagePaper = forwardRef<HTMLDivElement, PagePaperProps>(
   )
 );
 
+/* ---------- Componente principal ---------- */
 export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
   const flipRef = useRef<any>(null);
   const shellRef = useRef<HTMLDivElement>(null);
@@ -102,24 +104,35 @@ export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
   const bookH = Math.round(pageHeightRaw * mobileScale);
 
   /* ---------- Navegación ---------- */
-  const goPrev = () => {
+  const goPrev = async () => {
     const api = flipRef.current?.pageFlip?.();
     if (api && currentPage > 0) {
       const prevIndex = currentPage - 1;
-      const prevCanvas = renderedCache.current[prevIndex];
-      if (prevCanvas) {
+      const prevPageEl = document.querySelectorAll(".page-wrapper")[prevIndex] as HTMLElement;
+
+      if (prevPageEl) {
+        // 📸 Capturar imagen de la página anterior
+        const canvas = await html2canvas(prevPageEl, {
+          scale: window.devicePixelRatio,
+          backgroundColor: "#fff",
+          useCORS: true,
+          logging: false,
+        });
+
         const img = document.createElement("img");
-        img.src = prevCanvas.toDataURL("image/png");
+        img.src = canvas.toDataURL("image/png");
         img.className = "wipe-prev-img";
         img.style.width = `${bookW}px`;
         img.style.height = `${bookH}px`;
         document.body.appendChild(img);
+
         void img.offsetWidth;
         img.classList.add("active");
+
         setTimeout(() => {
           api.turnToPage(prevIndex);
           img.remove();
-        }, 450);
+        }, 500);
       } else {
         api.turnToPage(prevIndex);
       }
@@ -243,7 +256,6 @@ export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
                     if (Math.abs(i - currentPage) > 1) {
                       return <PagePaper key={i} />;
                     }
-
                     return (
                       <PagePaper key={i}>
                         <Page
