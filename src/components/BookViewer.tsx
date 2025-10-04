@@ -3,12 +3,14 @@ import {
   useEffect,
   useState,
   forwardRef,
+  useMemo,
 } from "react";
 import type { ReactNode } from "react";
 import HTMLFlipBook from "react-pageflip";
 import { Document, Page, pdfjs } from "react-pdf";
 import type { PDFPageProxy } from "pdfjs-dist";
 import workerSrc from "pdfjs-dist/build/pdf.worker.min.js?url";
+import React from "react";
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 
@@ -29,23 +31,23 @@ const PagePaper = forwardRef<HTMLDivElement, PagePaperProps>(
   )
 );
 
-/* ---------- Componente principal ---------- */
 export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
   const flipRef = useRef<any>(null);
   const shellRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
 
   const [numPages, setNumPages] = useState<number | null>(null);
-  const [pageWidth, setPageWidth] = useState<number>(1100);
   const [aspect, setAspect] = useState<number>(0.65);
+  const [pageWidth, setPageWidth] = useState<number>(1100);
   const [currentPage, setCurrentPage] = useState<number>(0);
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [isPortrait, setIsPortrait] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(false);
-
-  // Estado para buscador de páginas
   const [editing, setEditing] = useState(false);
   const [inputValue, setInputValue] = useState("");
+
+  // 📘 cache de canvases renderizados
+  const renderedCache = useRef<Record<number, HTMLCanvasElement>>({});
 
   // medir relación real del PDF
   const onFirstPageLoad = (page: PDFPageProxy) => {
@@ -63,14 +65,9 @@ export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
   const doResize = () => {
     if (!shellRef.current || !viewerRef.current) return;
     const shell = shellRef.current.getBoundingClientRect();
-
     let availW = Math.max(220, Math.floor(shell.width - 128));
     let availH = Math.max(180, Math.floor(shell.height - 80));
-
-    if (isPortrait) {
-      [availW, availH] = [availH, availW];
-    }
-
+    if (isPortrait) [availW, availH] = [availH, availW];
     let width = Math.min(availW, Math.round(availH / aspect));
     let height = Math.round(width * aspect);
     if (height > availH) {
@@ -80,67 +77,54 @@ export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
     setPageWidth(width);
   };
 
-  // detectar orientación y móvil
+  // orientación + móvil
   useEffect(() => {
     const mmPortrait = window.matchMedia("(orientation: portrait)");
     const mmMobile = window.matchMedia("(max-width: 600px)");
-
     const applyOrientation = () => setIsPortrait(mmPortrait.matches);
     const applyMobile = () => setIsMobile(mmMobile.matches);
-
     applyOrientation();
     applyMobile();
-
     mmPortrait.addEventListener("change", applyOrientation);
     mmMobile.addEventListener("change", applyMobile);
-
     doResize();
     window.addEventListener("resize", doResize);
-
     return () => {
       mmPortrait.removeEventListener("change", applyOrientation);
       mmMobile.removeEventListener("change", applyMobile);
       window.removeEventListener("resize", doResize);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aspect]);
 
-  useEffect(() => {
-    doResize();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPortrait]);
-
-  // dimensiones base
   const pageHeightRaw = Math.round(pageWidth * aspect);
   const mobileScale = isMobile ? 0.8 : 1;
   const bookW = Math.round(pageWidth * mobileScale);
   const bookH = Math.round(pageHeightRaw * mobileScale);
 
-  // Navegación
+  /* ---------- Navegación ---------- */
   const goPrev = () => {
-  const api = flipRef.current?.pageFlip?.();
-  if (api && currentPage > 0) {
-    const curr = api.getCurrentPageIndex();
-    const prevIndex = curr - 1;
-
-    // Buscar el wrapper de destino
-    const wrappers = document.querySelectorAll(".page-wrapper");
-    const targetWrapper = wrappers[prevIndex]?.cloneNode(true) as HTMLElement;
-
-    if (targetWrapper) {
-      targetWrapper.classList.add("preview-wipe-prev");
-      document.body.appendChild(targetWrapper); // lo ponemos flotante
-
-      setTimeout(() => {
-        document.body.removeChild(targetWrapper);
-        api.turnToPage(prevIndex); // cambio real
-      }, 600); // igual que @keyframes
-    } else {
-      api.turnToPage(prevIndex);
+    const api = flipRef.current?.pageFlip?.();
+    if (api && currentPage > 0) {
+      const prevIndex = currentPage - 1;
+      const prevCanvas = renderedCache.current[prevIndex];
+      if (prevCanvas) {
+        const img = document.createElement("img");
+        img.src = prevCanvas.toDataURL("image/png");
+        img.className = "wipe-prev-img";
+        img.style.width = `${bookW}px`;
+        img.style.height = `${bookH}px`;
+        document.body.appendChild(img);
+        void img.offsetWidth;
+        img.classList.add("active");
+        setTimeout(() => {
+          api.turnToPage(prevIndex);
+          img.remove();
+        }, 450);
+      } else {
+        api.turnToPage(prevIndex);
+      }
     }
-  }
-};
-
+  };
 
   const goNext = () => {
     const api = flipRef.current?.pageFlip?.();
@@ -149,11 +133,9 @@ export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
 
   const onFlip = (e: { data: number }) => setCurrentPage(e.data);
 
-  // estado de flechas
   const canGoPrev = currentPage > 0;
   const canGoNext = numPages ? currentPage < numPages - 1 : false;
 
-  // Girar teléfono
   const [showRotateHint, setShowRotateHint] = useState(false);
   useEffect(() => {
     const mm = window.matchMedia("(orientation: portrait)");
@@ -171,17 +153,13 @@ export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
     return () => mm.removeEventListener("change", applyOrientation);
   }, []);
 
-  // 👇 Forzar siempre modo single page centrado
   useEffect(() => {
     if (isLoaded && flipRef.current) {
       const api = flipRef.current.pageFlip();
-      if (api) {
-        api.setOrientation("portrait"); // truco: fuerza single page
-      }
+      if (api) api.setOrientation("portrait");
     }
   }, [isLoaded]);
 
-  // Función para ir a página
   const goToPage = (target: number) => {
     const api = flipRef.current?.pageFlip?.();
     if (api && !isNaN(target)) {
@@ -252,7 +230,7 @@ export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
                   usePortrait={true}
                   size="fixed"
                   drawShadow
-                  maxShadowOpacity={0.15}
+                  maxShadowOpacity={0.1}
                   useMouseEvents
                   mobileScrollSupport
                   disableFlipByClick={true}
@@ -262,16 +240,23 @@ export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
                   style={{ margin: "0 auto" }}
                 >
                   {Array.from({ length: numPages }, (_, i) => {
-                    if (i < currentPage - 2 || i > currentPage + 2) {
+                    if (Math.abs(i - currentPage) > 1) {
                       return <PagePaper key={i} />;
                     }
+
                     return (
                       <PagePaper key={i}>
                         <Page
                           pageNumber={i + 1}
                           width={bookW}
+                          scale={isMobile ? 0.9 : 1}
                           renderTextLayer={false}
                           renderAnnotationLayer={false}
+                          onRenderSuccess={(canvas: any) => {
+                            if (canvas?.canvas) {
+                              renderedCache.current[i] = canvas.canvas;
+                            }
+                          }}
                           onLoadSuccess={i === 0 ? onFirstPageLoad : undefined}
                           className="book-page"
                         />
