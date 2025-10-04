@@ -29,7 +29,62 @@
   box-shadow: 0 2px 8px rgba(0,0,0,0.10);
   z-index: 120;
   font-weight: 500;
+  cursor: pointer;
+
+  .page-search {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .page-input {
+  width: 50px;
+  border: none;
+  border-bottom: 2px solid #a8a8a8;
+  text-align: center;
+  font-weight: 600;
+  font-size: 1rem;
+  outline: none;
+  background: transparent;
+  margin: 0 6px;
+  color: #555; // 👈 color gris para el número
+
+  &:focus {
+    border-color: #333;
+  }
+
+  @media (max-width: 600px) {
+    width: 40px;
+    font-size: 0.9rem;
+  }
+
+  /* Quitar flechas del input number */
+  /* Chrome, Safari, Edge */
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  
 }
+
+  
+
+  .page-search-btn {
+    background: transparent;
+    border: none;
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 2px 4px;
+    transition: transform 0.2s;
+
+    &:hover {
+      transform: scale(1.1);
+    }
+  }
+}
+
 .page-indicator-bottom {
   bottom: 24px;
   left: 50%;
@@ -127,6 +182,7 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
 /* ========================
    Responsive móvil
 ======================== */
@@ -163,8 +219,6 @@
   align-items: center;
   justify-content: center;
 
-  /* Ajuste limpio sin zoom agresivo:
-     escala el contenedor para que quepa entero usando vars --book-w/--book-h */
   --sx: calc(100svh / var(--book-h));
   --sy: calc(100svw / var(--book-w));
   scale: min(var(--sx), var(--sy));
@@ -212,3 +266,33 @@
   from { opacity: 0; }
   to   { opacity: 1; }
 }
+
+/* ========================
+   Animación para retroceder (wipe)
+======================== */
+@keyframes wipePrev {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+.page-wrapper.animating-wipe-prev {
+  animation: wipePrev 0.6s ease-out forwards;
+}
+
+.preview-wipe-prev {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: var(--book-w);
+  height: var(--book-h);
+  background: #fff;
+  z-index: 999;
+  overflow: hidden;
+  animation: wipePrev 0.6s ease-out forwards;
+}
+

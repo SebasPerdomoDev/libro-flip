@@ -43,6 +43,10 @@ export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
   const [isPortrait, setIsPortrait] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(false);
 
+  // Estado para buscador de páginas
+  const [editing, setEditing] = useState(false);
+  const [inputValue, setInputValue] = useState("");
+
   // medir relación real del PDF
   const onFirstPageLoad = (page: PDFPageProxy) => {
     const w = page.view[2] - page.view[0];
@@ -114,9 +118,30 @@ export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
 
   // Navegación
   const goPrev = () => {
-    const api = flipRef.current?.pageFlip?.();
-    if (api && currentPage > 0) api.flipPrev();
-  };
+  const api = flipRef.current?.pageFlip?.();
+  if (api && currentPage > 0) {
+    const curr = api.getCurrentPageIndex();
+    const prevIndex = curr - 1;
+
+    // Buscar el wrapper de destino
+    const wrappers = document.querySelectorAll(".page-wrapper");
+    const targetWrapper = wrappers[prevIndex]?.cloneNode(true) as HTMLElement;
+
+    if (targetWrapper) {
+      targetWrapper.classList.add("preview-wipe-prev");
+      document.body.appendChild(targetWrapper); // lo ponemos flotante
+
+      setTimeout(() => {
+        document.body.removeChild(targetWrapper);
+        api.turnToPage(prevIndex); // cambio real
+      }, 600); // igual que @keyframes
+    } else {
+      api.turnToPage(prevIndex);
+    }
+  }
+};
+
+
   const goNext = () => {
     const api = flipRef.current?.pageFlip?.();
     if (api && numPages && currentPage < numPages - 1) api.flipNext();
@@ -155,7 +180,24 @@ export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
       }
     }
   }, [isLoaded]);
-  
+
+  // Función para ir a página
+  const goToPage = (target: number) => {
+    const api = flipRef.current?.pageFlip?.();
+    if (api && !isNaN(target)) {
+      const targetIndex = Math.min(Math.max(target - 1, 0), (numPages ?? 1) - 1);
+      api.turnToPage(targetIndex);
+      setCurrentPage(targetIndex);
+    }
+  };
+
+  const handleSearch = () => {
+    const num = parseInt(inputValue, 10);
+    if (!isNaN(num)) {
+      goToPage(num);
+      setEditing(false);
+    }
+  };
 
   return (
     <div className="book-shell" ref={shellRef}>
@@ -207,8 +249,7 @@ export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
                   className="book shadow"
                   width={bookW}
                   height={bookH}
-                  singlePage={true}
-                  usePortrait={false}
+                  usePortrait={true}
                   size="fixed"
                   drawShadow
                   maxShadowOpacity={0.15}
@@ -245,8 +286,36 @@ export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
       </div>
 
       {isLoaded && numPages && (
-        <div className="page-indicator page-indicator-top">
-          Página {currentPage + 1} de {numPages}
+        <div
+          className="page-indicator page-indicator-top"
+          onClick={() => {
+            if (!editing) {
+              setEditing(true);
+              setInputValue("");
+            }
+          }}
+        >
+          {!editing ? (
+            <>Página {currentPage + 1} de {numPages}</>
+          ) : (
+            <div className="page-search">
+              <input
+                className="page-input"
+                type="number"
+                placeholder="Ir a..."
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSearch();
+                  if (e.key === "Escape") setEditing(false);
+                }}
+                autoFocus
+              />
+              <button className="page-search-btn" onClick={handleSearch}>
+                🔍
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
