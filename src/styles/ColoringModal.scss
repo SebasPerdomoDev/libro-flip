@@ -1,0 +1,79 @@
+/* ========================
+ 🎨 ColoringModal Styles
+======================== */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  animation: fadeInModal 0.3s ease-out;
+}
+
+.modal-content {
+  background: #ffffff;
+  padding: 24px 32px;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  animation: popModal 0.35s ease-in-out;
+  max-width: 700px;
+  width: 90%;
+}
+
+.modal-content h2 {
+  font-size: 1.4rem;
+  margin-bottom: 6px;
+  color: #0e2962;
+}
+
+.modal-content p {
+  color: #555;
+  margin-bottom: 16px;
+}
+
+.modal-btn {
+  background: #0e2962;
+  color: #fff;
+  border: none;
+  padding: 10px 22px;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.modal-btn:hover {
+  background: #24c8c1;
+}
+
+/* === Animaciones suaves === */
+@keyframes fadeInModal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes popModal {
+  from { transform: scale(0.9); opacity: 0.7; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* === Responsivo === */
+@media (max-width: 600px) {
+  .modal-content {
+    width: 95%;
+    padding: 18px;
+  }
+
+  .modal-content h2 {
+    font-size: 1.2rem;
+  }
+
+  .modal-btn {
+    font-size: 0.95rem;
+    padding: 8px 18px;
+  }
+}

@@ -11,6 +11,7 @@ import HTMLFlipBook from "react-pageflip";
 import { Document, Page, pdfjs } from "react-pdf";
 import type { PDFPageProxy } from "pdfjs-dist";
 import workerSrc from "pdfjs-dist/build/pdf.worker.min.js?url";
+import ColoringModal from "./ColoringModal"; // 🎨 Import del modal
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 
@@ -36,6 +37,7 @@ export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
   const flipRef = useRef<any>(null);
   const shellRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
+  const indicatorRef = useRef<HTMLDivElement>(null);
 
   const [numPages, setNumPages] = useState(0);
   const [aspect, setAspect] = useState(0.65);
@@ -47,7 +49,19 @@ export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
   const [editing, setEditing] = useState(false);
   const [inputValue, setInputValue] = useState("");
 
-  //const renderedCache = useRef<Record<number, HTMLCanvasElement>>({});
+  /* 🎨 Estados del modal */
+  const [showActivity, setShowActivity] = useState(false);
+  const [activityId, setActivityId] = useState<string | null>(null);
+
+  const openModal = (id: string) => {
+    setActivityId(id);
+    setShowActivity(true);
+  };
+
+  const closeModal = () => {
+    setShowActivity(false);
+    setActivityId(null);
+  };
 
   /* --- Detect PDF aspect ratio --- */
   const onFirstPageLoad = useCallback((page: PDFPageProxy) => {
@@ -90,11 +104,36 @@ export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
     };
   }, [doResize]);
 
-  // Calcular dimensiones del libro en movil
+  // Calcular dimensiones del libro
+  const mobileZoom = isMobile ? 0.6 : 1;
+  const bookW = Math.round(pageWidth * mobileZoom);
+  const bookH = Math.round(bookW * aspect);
 
-const mobileZoom = isMobile ? 0.6 : 1; // 0.6 = 60% tamaño original
-const bookW = Math.round(pageWidth * mobileZoom);
-const bookH = Math.round(bookW * aspect);
+/* ============================
+   🧩  Zonas interactivas del libro
+============================ */
+
+// 🧱 Definición del tipo de zona
+interface InteractiveZone {
+  id: string;
+  top: string;
+  left: string;
+  width: string;
+  height: string;
+}
+
+// 🧭 Mapa de zonas por número de página
+const interactiveZones: Record<number, InteractiveZone[]> = {
+  1: [
+    {
+      id: "actividad-oso",
+      top: "50%",
+      left: "50%",
+      width: "30%",
+      height: "30%",
+    },
+  ],
+};
 
 
   /* ---------- Animación al devolver ---------- */
@@ -105,7 +144,6 @@ const bookH = Math.round(bookW * aspect);
     const prevIndex = currentPage - 1;
     const wrap = viewerRef.current;
 
-    // Crear overlay animado con tu imagen
     const overlay = document.createElement("div");
     overlay.className = "page-overlay";
     overlay.style.width = `${bookW}px`;
@@ -115,35 +153,20 @@ const bookH = Math.round(bookW * aspect);
     overlay.style.backgroundPosition = "center";
 
     wrap.appendChild(overlay);
-
-    // Forzar render antes de aplicar animación
     void overlay.offsetWidth;
-
-    // Activar la animación
     overlay.classList.add("active");
 
-    // Pasar la página en el punto medio
-    setTimeout(() => {
-      api.turnToPage(prevIndex);
-    }, 800);
-
-    // Quitar la hoja al terminar
-    setTimeout(() => {
-      overlay.remove();
-    }, 1600);
+    setTimeout(() => api.turnToPage(prevIndex), 700);
+    setTimeout(() => overlay.remove(), 1300);
   }, [currentPage, bookW, bookH]);
 
-  /* ---------- Avanzar (motor nativo flip) ---------- */
+  /* ---------- Avanzar ---------- */
   const goNext = useCallback(() => {
     const api = flipRef.current?.pageFlip?.();
-    if (api && currentPage < numPages - 1) {
-      api.flipNext();
-    }
+    if (api && currentPage < numPages - 1) api.flipNext();
   }, [currentPage, numPages]);
 
-  const onFlip = useCallback((e: { data: number }) => {
-    setCurrentPage(e.data);
-  }, []);
+  const onFlip = useCallback((e: { data: number }) => setCurrentPage(e.data), []);
 
   const goToPage = (target: number) => {
     const api = flipRef.current?.pageFlip?.();
@@ -162,6 +185,21 @@ const bookH = Math.round(bookW * aspect);
     }
   };
 
+  /* ✅ Detectar clic fuera del buscador */
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        editing &&
+        indicatorRef.current &&
+        !indicatorRef.current.contains(e.target as Node)
+      ) {
+        setEditing(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [editing]);
+
   const pagesToRender = useMemo(() => {
     if (!numPages) return [];
     return [currentPage - 1, currentPage, currentPage + 1].filter(
@@ -170,108 +208,128 @@ const bookH = Math.round(bookW * aspect);
   }, [currentPage, numPages]);
 
   return (
-    <div className="book-shell" ref={shellRef}>
-      <div
-        className={`flip-wrap ${isPortrait ? "force-landscape" : ""}`}
-        ref={viewerRef}
-        style={
-          {
-            ["--book-w" as any]: `${bookW}px`,
-            ["--book-h" as any]: `${bookH}px`,
-          } as any
-        }
-      >
-        <div className="book-viewer-pdf">
-          <Document
-            file={file}
-            onLoadSuccess={onDocLoad}
-            loading={<div className="p-4 text-center">Cargando PDF…</div>}
-          >
-            {isLoaded && numPages > 0 && (
-              <>
-                <button
-                  className="nav-arrow nav-arrow-left"
-                  onClick={goPrev}
-                  disabled={currentPage === 0}
-                >
-                  ←
-                </button>
-                <button
-                  className="nav-arrow nav-arrow-right"
-                  onClick={goNext}
-                  disabled={currentPage >= numPages - 1}
-                >
-                  →
-                </button>
+    <>
+      <div className="book-shell" ref={shellRef}>
+        <div
+          className={`flip-wrap ${isPortrait ? "force-landscape" : ""}`}
+          ref={viewerRef}
+          style={
+            {
+              ["--book-w" as any]: `${bookW}px`,
+              ["--book-h" as any]: `${bookH}px`,
+            } as any
+          }
+        >
+          <div className="book-viewer-pdf">
+            <Document
+              file={file}
+              onLoadSuccess={onDocLoad}
+              loading={<div className="p-4 text-center">Cargando PDF…</div>}
+            >
+              {isLoaded && numPages > 0 && (
+                <>
+                  <button
+                    className="nav-arrow nav-arrow-left"
+                    onClick={goPrev}
+                    disabled={currentPage === 0}
+                  >
+                    ←
+                  </button>
+                  <button
+                    className="nav-arrow nav-arrow-right"
+                    onClick={goNext}
+                    disabled={currentPage >= numPages - 1}
+                  >
+                    →
+                  </button>
 
-                <HTMLFlipBook
-                  ref={flipRef}
-                  className="book shadow"
-                  width={bookW}
-                  height={bookH}
-                  size="fixed"
-                  drawShadow
-                  useMouseEvents
-                  disableFlipByClick={true}
-                  clickEventForward={true}
-                  showPageCorners={false}
-                  onFlip={onFlip}
-                  style={{ margin: "0 auto" }}
-                >
-                  {Array.from({ length: numPages }, (_, i) => (
-                    <PagePaper key={i}>
-                      {pagesToRender.includes(i) && (
-                        <Page
-                          pageNumber={i + 1}
-                          width={bookW}
-                          renderTextLayer={false}
-                          renderAnnotationLayer={false}
-                          onLoadSuccess={i === 0 ? onFirstPageLoad : undefined}
-                          className="book-page"
-                        />
-                      )}
-                    </PagePaper>
-                  ))}
-                </HTMLFlipBook>
-              </>
-            )}
-          </Document>
+                  <HTMLFlipBook
+                    ref={flipRef}
+                    className="book shadow"
+                    width={bookW}
+                    height={bookH}
+                    size="fixed"
+                    drawShadow
+                    useMouseEvents
+                    disableFlipByClick={true}
+                    clickEventForward={true}
+                    showPageCorners={false}
+                    onFlip={onFlip}
+                    style={{ margin: "0 auto" }}
+                  >
+                    {Array.from({ length: numPages }, (_, i) => (
+                      <PagePaper key={i}>
+                        {pagesToRender.includes(i) && (
+                          <div className="page-container">
+                            <Page
+                              pageNumber={i + 1}
+                              width={bookW}
+                              renderTextLayer={false}
+                              renderAnnotationLayer={false}
+                              onLoadSuccess={i === 0 ? onFirstPageLoad : undefined}
+                              className="book-page"
+                            />
+
+                            {/* 🧩 Zonas clickeables invisibles */}
+                            {interactiveZones[i + 1]?.map((zone) => (
+                              <div
+                                key={zone.id}
+                                className="click-zone"
+                                style={zone}
+                                onClick={() => openModal(zone.id)}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </PagePaper>
+                    ))}
+                  </HTMLFlipBook>
+                </>
+              )}
+            </Document>
+          </div>
         </div>
+
+        {isLoaded && numPages > 0 && (
+          <div
+            ref={indicatorRef}
+            className="page-indicator page-indicator-top"
+            onClick={() => {
+              if (!editing) {
+                setEditing(true);
+                setInputValue("");
+              }
+            }}
+          >
+            {!editing ? (
+              <>Página {currentPage + 1} de {numPages}</>
+            ) : (
+              <div className="page-search">
+                <input
+                  className="page-input"
+                  type="number"
+                  placeholder="Ir a..."
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSearch();
+                    if (e.key === "Escape") setEditing(false);
+                  }}
+                  autoFocus
+                />
+                <button className="page-search-btn" onClick={handleSearch}>
+                  🔍
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {isLoaded && numPages > 0 && (
-        <div
-          className="page-indicator page-indicator-top"
-          onClick={() => {
-            if (!editing) {
-              setEditing(true);
-              setInputValue("");
-            }
-          }}
-        >
-          {!editing ? (
-            <>Página {currentPage + 1} de {numPages}</>
-          ) : (
-            <div className="page-search">
-              <input
-                className="page-input"
-                type="number"
-                placeholder="Ir a..."
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSearch();
-                  if (e.key === "Escape") setEditing(false);
-                }}
-                autoFocus
-              />
-              <button className="page-search-btn" onClick={handleSearch}>
-                🔍
-              </button>
-            </div>
-          )}
-        </div>
+      {/* 🎨 Modal de colorear */}
+      {showActivity && activityId && (
+        <ColoringModal id={activityId} onClose={closeModal} />
       )}
-    </div>
+    </>
   );
 }
