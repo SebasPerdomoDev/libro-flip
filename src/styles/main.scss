@@ -1,19 +1,79 @@
 /* ========================
-   Indicadores de página
+   Indicador de página vertical
 ======================== */
 .page-indicator-top {
-  top: 24px;
-  left: 50%;
-  transform: translateX(-50%);
   position: absolute;
+  top: 50%;
+  right: 10px;
+  left: auto;
+  transform: translateY(-50%) rotate(90deg);
+  background: rgba(255, 255, 255, 0.95);
+  color: #222;
+  padding: 6px 12px;
+  font-size: 0.9rem;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  z-index: 250;
+  user-select: none;
 }
-@media (max-width: 600px) {
+
+/* 🖥️ En pantallas grandes, vuelve centrado arriba */
+@media (min-width: 601px) {
   .page-indicator-top {
-    top: 10px;
+    top: 16px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%) rotate(0deg);
     font-size: 1rem;
-    padding: 4px 10px;
   }
 }
+
+
+/* ========================
+   Indicador vertical móvil
+======================== */
+@media (max-width: 600px) {
+  .page-indicator-top {
+    top: 50%;
+    right: 8px;
+    left: auto;
+    transform: translateY(-50%) rotate(90deg);
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    font-size: 0.9rem;
+    padding: 4px 10px;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    color: #333;
+    z-index: 200;
+    white-space: nowrap;
+  }
+}
+
+/* ========================
+   Escala general móvil (libro alejado)
+======================== */
+@media (max-width: 600px) {
+  .flip-wrap {
+    transform: scale(0.75);
+    transform-origin: center center;
+  }
+
+  .book {
+    transform: scale(0.9);
+    transform-origin: center center;
+  }
+
+  .book-viewer-pdf {
+    justify-content: center;
+    align-items: center;
+    display: flex;
+  }
+}
+
+
 
 /* Indicador de página abajo y centrado */
 .page-indicator {
@@ -114,6 +174,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
   position: relative;
   height: 100%;
 }
@@ -277,13 +338,20 @@
 
 /* Efecto de barrido (retroceder) */
 @keyframes wipePrevEnter {
-  from {
-    transform: translate(-50%, -50%) translateX(-100%);
-    opacity: 0.7;
+  0% {
+    transform: translate(-50%, -50%) translateX(-40%);
+    opacity: 0;
+    clip-path: inset(0 100% 0 0);
   }
-  to {
+  50% {
     transform: translate(-50%, -50%) translateX(0);
     opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+  100% {
+    transform: translate(-50%, -50%) translateX(0);
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
   }
 }
 
@@ -291,17 +359,53 @@
   position: fixed;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%) translateX(-100%);
-  object-fit: cover;
+  width: var(--book-w);
+  height: var(--book-h);
+  transform: translate(-50%, -50%);
   background: #fff;
-  z-index: 9999;
-  border-radius: 3px;
+  border-radius: 5px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
   opacity: 0;
-  transition: opacity 0.2s;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  z-index: 9999;
+  object-fit: cover;
+  pointer-events: none;
+  transition: opacity 0.25s ease-in-out;
 }
 
 .wipe-prev-img.active {
   opacity: 1;
-  animation: wipePrevEnter 0.55s ease-out forwards;
+  animation: wipePrevEnter 0.5s ease-out forwards;
+}
+
+/* ===== Overlay de animación al devolver página ===== */
+.page-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(1.05);
+  background-color: white;
+  opacity: 0;
+  z-index: 999;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  transition: all 0.45s ease-out;
+}
+
+.page-overlay.active {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+  animation: overlayWipe 1.8s cubic-bezier(0.42, 0, 0.25, 1) forwards;
+}
+
+@keyframes overlayWipe {
+  0% {
+    clip-path: inset(0 100% 0 0);
+  }
+  50% {
+    clip-path: inset(0 0 0 0);
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+    opacity: 0;
+  }
 }
