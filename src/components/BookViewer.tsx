@@ -33,7 +33,7 @@ const PagePaper = forwardRef<HTMLDivElement, PagePaperProps>(
 );
 
 /* ---------- Main component ---------- */
-export default function BookViewer({ file = "/libro.pdf" }: BookViewerProps) {
+export default function BookViewer({ file = "/libros/JARDIN.pdf" }: BookViewerProps) {
   const flipRef = useRef<any>(null);
   const shellRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
@@ -250,13 +250,14 @@ const interactiveZones: Record<number, InteractiveZone[]> = {
                     height={bookH}
                     size="fixed"
                     drawShadow
-                    useMouseEvents
-                    disableFlipByClick={true}
-                    clickEventForward={true}
+                    useMouseEvents={false}          // ❌ Desactiva drag/swipe
+                    disableFlipByClick={true}       // ❌ No pasa página al hacer click
+                    clickEventForward={true}        // ✅ Permite que tus click-zones reciban el click
                     showPageCorners={false}
                     onFlip={onFlip}
-                    style={{ margin: "0 auto" }}
+                    style={{ margin: "0 auto" }}    // ✅ Quitamos pointerEvents: 'none'
                   >
+
                     {Array.from({ length: numPages }, (_, i) => (
                       <PagePaper key={i}>
                         {pagesToRender.includes(i) && (

@@ -344,12 +344,12 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%) scale(1);
-  background-color: #ffffff; /* 🔥 blanco puro */
-  opacity: 1; /* 🔥 sin opacidad gris */
+  background-color: #ffffff;
+  opacity: 1;
   z-index: 120;
   border-radius: 6px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-  transition: none; /* sin transición de opacidad */
+  transition: none;
   width: var(--book-w);
   height: var(--book-h);
   pointer-events: none;
@@ -359,9 +359,43 @@
   animation: overlayWipe 1.6s cubic-bezier(0.42, 0, 0.25, 1) forwards;
 }
 
-/* Animación sólida de barrido blanco */
 @keyframes overlayWipe {
   0%   { clip-path: inset(0 100% 0 0); }
   50%  { clip-path: inset(0 0 0 0); }
   100% { clip-path: inset(0 0 0 0); }
+}
+
+/* =========================================================
+   ✅ CLICK-ZONES FUNCIONALES SOBRE PDF
+========================================================= */
+
+.page-wrapper canvas {
+  pointer-events: none !important; /* Evita que bloquee clics */
+}
+
+.page-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.click-zone {
+  position: absolute;
+  cursor: pointer;
+  z-index: 999;
+  transform: translate(-50%, -50%);
+  border: 2px dashed rgba(255, 0, 0, 0.5);
+  background: rgba(255, 0, 0, 0.15);
+  transition: 0.2s ease;
+}
+
+.click-zone:hover {
+  background: rgba(255, 0, 0, 0.3);
+  border-color: red;
+}
+
+/* versión invisible para producción */
+.click-zone.invisible {
+  background: transparent;
+  border: none;
 }
