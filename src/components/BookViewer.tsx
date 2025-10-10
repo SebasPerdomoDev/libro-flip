@@ -138,27 +138,25 @@ const interactiveZones: Record<number, InteractiveZone[]> = {
 
   /* ---------- Animación al devolver ---------- */
   const goPrev = useCallback(() => {
-    const api = flipRef.current?.pageFlip?.();
-    if (!api || currentPage <= 0 || !viewerRef.current) return;
+  const api = flipRef.current?.pageFlip?.();
+  if (!api || currentPage <= 0 || !viewerRef.current) return;
 
-    const prevIndex = currentPage - 1;
-    const wrap = viewerRef.current;
+  const prevIndex = currentPage - 1;
+  const wrap = viewerRef.current;
 
-    const overlay = document.createElement("div");
-    overlay.className = "page-overlay";
-    overlay.style.width = `${bookW}px`;
-    overlay.style.height = `${bookH}px`;
-    overlay.style.backgroundImage = "url('/content.png')";
-    overlay.style.backgroundSize = "cover";
-    overlay.style.backgroundPosition = "center";
+  // 🔹 Crea la hoja animada
+  const flip = document.createElement("div");
+  flip.className = "page-flip-back";
+  flip.style.setProperty("--book-w", `${bookW}px`);
+  flip.style.setProperty("--book-h", `${bookH}px`);
+  flip.style.backgroundImage = "url('/content.png')"; // o la miniatura actual
 
-    wrap.appendChild(overlay);
-    void overlay.offsetWidth;
-    overlay.classList.add("active");
+  wrap.appendChild(flip);
 
-    setTimeout(() => api.turnToPage(prevIndex), 700);
-    setTimeout(() => overlay.remove(), 1300);
-  }, [currentPage, bookW, bookH]);
+  // 🕒 Espera mientras hace el giro
+  setTimeout(() => api.turnToPage(prevIndex), 600);
+  setTimeout(() => flip.remove(), 1200);
+}, [currentPage, bookW, bookH]);
 
   /* ---------- Avanzar ---------- */
   const goNext = useCallback(() => {
@@ -249,6 +247,7 @@ const interactiveZones: Record<number, InteractiveZone[]> = {
                     width={bookW}
                     height={bookH}
                     size="fixed"
+                    
                     drawShadow
                     useMouseEvents={false}          // ❌ Desactiva drag/swipe
                     disableFlipByClick={true}       // ❌ No pasa página al hacer click

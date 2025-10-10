@@ -52,7 +52,7 @@
 }
 
 /* ========================
-   Escala general móvil (libro alejado)
+   Escala general móvil
 ======================== */
 @media (max-width: 600px) {
   .flip-wrap {
@@ -72,7 +72,9 @@
   }
 }
 
-/* Indicador de página abajo y centrado */
+/* ========================
+   Indicador inferior
+======================== */
 .page-indicator {
   position: absolute;
   left: 50%;
@@ -232,11 +234,6 @@
 .nav-arrow-left { left: 16px; }
 .nav-arrow-right { right: 16px; }
 
-.nav-arrow-disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
 .nav-arrow:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -327,50 +324,66 @@
 }
 
 /* =========================================================
-   🔹 MEJORAS IMPLEMENTADAS
+   🔹 EFECTO DE VOLTEO DE PÁGINA 3D (IZQUIERDA → DERECHA)
 ========================================================= */
-
-/* Suaviza el cambio de canvas entre páginas */
-.page-wrapper canvas {
-  transition: opacity 0.25s ease-in-out;
-}
-.page-wrapper canvas[aria-busy="true"] {
-  opacity: 0;
-}
-
-/* ===== Overlay blanco sólido al devolver página ===== */
-.page-overlay {
+.page-flip-back {
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%) scale(1);
-  background-color: #ffffff;
-  opacity: 1;
-  z-index: 120;
-  border-radius: 6px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-  transition: none;
+  transform: translate(-50%, -50%) perspective(1600px) rotateY(0deg);
   width: var(--book-w);
   height: var(--book-h);
-  pointer-events: none;
+  transform-origin: left center;
+  background-color: #fff;
+  background-size: cover;
+  background-position: center;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  z-index: 130;
+  backface-visibility: hidden;
+  animation: pageFlipBack 1.2s ease-in-out forwards;
 }
 
-.page-overlay.active {
-  animation: overlayWipe 1.6s cubic-bezier(0.42, 0, 0.25, 1) forwards;
+/* 🔆 Sombra dinámica */
+.page-flip-back::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to left, rgba(0, 0, 0, 0.35), transparent 70%);
+  opacity: 0;
+  animation: flipShadowBack 1.2s ease-in-out forwards;
+  border-radius: 8px;
 }
 
-@keyframes overlayWipe {
-  0%   { clip-path: inset(0 100% 0 0); }
-  50%  { clip-path: inset(0 0 0 0); }
-  100% { clip-path: inset(0 0 0 0); }
+/* 🌀 Animación del paso de página */
+@keyframes pageFlipBack {
+  0% {
+    transform: translate(-50%, -50%) perspective(1600px) rotateY(180deg);
+    opacity: 0;
+  }
+  50% {
+    transform: translate(-50%, -50%) perspective(1600px) rotateY(90deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) perspective(1600px) rotateY(0deg);
+    opacity: 1;
+  }
+}
+
+
+/* 🌗 Sombra animada */
+@keyframes flipShadowBack {
+  0% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+  100% { opacity: 0; }
 }
 
 /* =========================================================
    ✅ CLICK-ZONES FUNCIONALES SOBRE PDF
 ========================================================= */
-
 .page-wrapper canvas {
-  pointer-events: none !important; /* Evita que bloquee clics */
+  pointer-events: none !important;
 }
 
 .page-container {
@@ -394,7 +407,6 @@
   border-color: red;
 }
 
-/* versión invisible para producción */
 .click-zone.invisible {
   background: transparent;
   border: none;
