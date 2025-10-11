@@ -85,7 +85,7 @@
   padding: 6px 18px;
   border-radius: 12px;
   border: 2px solid #a8a8a8;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   z-index: 120;
   font-weight: 500;
   cursor: pointer;
@@ -168,17 +168,23 @@
   position: relative;
 }
 
+/* =========================================================
+   📏 Perspectiva + Zoom visual del libro
+========================================================= */
 .flip-wrap {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  overflow: visible; /* ✅ permite que el libro se vea completo */
   position: relative;
   height: 100%;
+  perspective: 2600px;
+  transform: scale(var(--zoom, 0.9)); /* 📏 más cerca por defecto */
+  transform-origin: center center;
+  padding: 40px 60px; /* ✅ espacio extra para que no se recorte */
 }
 
-.book { margin: 0 auto; }
 
 .book-viewer-pdf {
   width: 100%;
@@ -187,6 +193,12 @@
   align-items: center;
   justify-content: center;
   position: relative;
+  transform: translateY(5%);
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.18));
+}
+
+.book {
+  margin: 0 auto;
 }
 
 .page-wrapper {
@@ -211,14 +223,14 @@
   top: 50%;
   transform: translateY(-50%);
   z-index: 100;
-  background: rgba(255,255,255,0.9);
+  background: rgba(255, 255, 255, 0.9);
   border: none;
   border-radius: 50%;
   width: 48px;
   height: 48px;
   font-size: 2rem;
   color: #333;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   cursor: pointer;
   transition: background 0.2s, box-shadow 0.2s, opacity 0.2s;
   display: flex;
@@ -228,11 +240,15 @@
 
 .nav-arrow:hover {
   background: #e0e0e0;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
 }
 
-.nav-arrow-left { left: 16px; }
-.nav-arrow-right { right: 16px; }
+.nav-arrow-left {
+  left: 16px;
+}
+.nav-arrow-right {
+  right: 16px;
+}
 
 .nav-arrow:disabled {
   opacity: 0.5;
@@ -311,72 +327,89 @@
 }
 
 @keyframes rotatePhone {
-  0%   { transform: rotate(0deg); }
-  25%  { transform: rotate(90deg); }
-  50%  { transform: rotate(0deg); }
-  75%  { transform: rotate(-90deg); }
-  100% { transform: rotate(0deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(90deg);
+  }
+  50% {
+    transform: rotate(0deg);
+  }
+  75% {
+    transform: rotate(-90deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* =========================================================
-   🔹 EFECTO DE VOLTEO DE PÁGINA 3D (IZQUIERDA → DERECHA)
+   🔹 EFECTO DE TAPA CAYENDO DESDE ARRIBA (CIERRE VERTICAL 3D)
 ========================================================= */
 .page-flip-back {
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%) perspective(1600px) rotateY(0deg);
   width: var(--book-w);
   height: var(--book-h);
-  transform-origin: left center;
   background-color: #fff;
   background-size: cover;
   background-position: center;
   border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
   z-index: 130;
   backface-visibility: hidden;
-  animation: pageFlipBack 1.2s ease-in-out forwards;
+  transform-origin: center top;
+  transform: translate(-50%, -50%) perspective(1600px) rotateX(-180deg);
+  animation: pageFlipDown 1.2s ease-in-out forwards;
 }
 
-/* 🔆 Sombra dinámica */
 .page-flip-back::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(to left, rgba(0, 0, 0, 0.35), transparent 70%);
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.4), transparent 70%);
   opacity: 0;
-  animation: flipShadowBack 1.2s ease-in-out forwards;
+  animation: flipShadowDown 1.2s ease-in-out forwards;
   border-radius: 8px;
+  pointer-events: none;
 }
 
-/* 🌀 Animación del paso de página */
-@keyframes pageFlipBack {
+@keyframes pageFlipDown {
   0% {
-    transform: translate(-50%, -50%) perspective(1600px) rotateY(180deg);
-    opacity: 0;
+    transform: translate(-50%, -50%) perspective(1600px) rotateX(-180deg);
+    opacity: 0.9;
   }
-  50% {
-    transform: translate(-50%, -50%) perspective(1600px) rotateY(90deg);
+  40% {
+    transform: translate(-50%, -50%) perspective(1600px) rotateX(-90deg);
     opacity: 1;
   }
   100% {
-    transform: translate(-50%, -50%) perspective(1600px) rotateY(0deg);
+    transform: translate(-50%, -50%) perspective(1600px) rotateX(0deg);
     opacity: 1;
   }
 }
 
-
-/* 🌗 Sombra animada */
-@keyframes flipShadowBack {
-  0% { opacity: 0.4; }
-  50% { opacity: 0.7; }
-  100% { opacity: 0; }
+@keyframes flipShadowDown {
+  0% {
+    opacity: 0.7;
+  }
+  40% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 /* =========================================================
@@ -410,4 +443,99 @@
 .click-zone.invisible {
   background: transparent;
   border: none;
+}
+/* =========================================================
+   📚 BOTONES DE MODO DE VISTA
+========================================================= */
+.book-mode-toggle {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  display: flex;
+  gap: 8px;
+  z-index: 999;
+
+  .mode-btn {
+    background: #ffffff;
+    border: 1.8px solid #c5c5c5;
+    border-radius: 8px;
+    padding: 6px;
+    cursor: pointer;
+    transition: 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+      background: #f0f0f0;
+      transform: scale(1.05);
+    }
+
+    &.active {
+      background: #0e2962;
+      color: #fff;
+      border-color: #0e2962;
+    }
+  }
+}
+
+/* =========================================================
+   🔹 FLECHAS FUERA DEL CONTENEDOR DEL LIBRO
+========================================================= */
+.nav-arrow {
+  position: fixed !important;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.95);
+  border: none;
+  border-radius: 50%;
+  width: 52px;
+  height: 52px;
+  font-size: 2.2rem;
+  color: #222;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  z-index: 1500;
+  transition: transform 0.2s ease, background 0.2s ease;
+
+  &:hover {
+    transform: translateY(-50%) scale(1.1);
+    background: #24c8c1;
+    color: #fff;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.nav-arrow-left {
+  left: 30px;
+}
+.nav-arrow-right {
+  right: 30px;
+}
+/* =========================================================
+   🎚️ Vista de una página vs doble página (solo visual)
+========================================================= */
+.book.double-view {
+  width: 100% !important;
+  transform: translateX(0) scale(1);
+  transition: all 0.35s ease;
+}
+
+/* 🔹 Modo una página */
+.book.single-view {
+  width: 50% !important; /* muestra solo una “hoja” */
+  transform: translateX(-25%) scale(1.05); /* centrada y un poco más grande */
+  transition: all 0.35s ease;
+}
+
+/* Ajuste para centrar mejor el contenido en pantallas pequeñas */
+@media (max-width: 900px) {
+  .book.single-view {
+    width: 85% !important;
+    transform: translateX(0) scale(1);
+  }
 }
