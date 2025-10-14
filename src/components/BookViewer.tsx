@@ -12,7 +12,7 @@ import { Document, Page, pdfjs } from "react-pdf";
 import type { PDFPageProxy } from "pdfjs-dist";
 import workerSrc from "pdfjs-dist/build/pdf.worker.min.js?url";
 import { Maximize2, Minimize2 } from "lucide-react"; // ✅ Iconos para vista
-import ColoringModal from "./ColoringModal"; // 🎨 Modal de colorear
+import ColoringModal from "./ColoringModal"; 
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 
@@ -35,7 +35,7 @@ const PagePaper = forwardRef<HTMLDivElement, PagePaperProps>(
 
 /* ---------- Componente principal ---------- */
 export default function BookViewer({
-  file = "/libros/JARDIN.pdf",
+  file = "/libros/PARVULOS.pdf",
 }: BookViewerProps) {
   const flipRef = useRef<any>(null);
   const shellRef = useRef<HTMLDivElement>(null);
@@ -43,7 +43,7 @@ export default function BookViewer({
   const indicatorRef = useRef<HTMLDivElement>(null);
 
   const [numPages, setNumPages] = useState(0);
-  const [aspect, setAspect] = useState(0.65);
+  const [aspect, setAspect] = useState(0.72);// Proporción alto/ancho
   const [pageWidth, setPageWidth] = useState(1100);
   const [currentPage, setCurrentPage] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -113,7 +113,11 @@ export default function BookViewer({
 
   /* --- Dimensiones visuales del libro --- */
   const renderScale = 1;
-  const visualZoom = isMobile ? 0.75 : 0.82;
+  const visualZoom = useMemo(() => {
+  if (isMobile) return 0.85;
+  return viewMode === "single" ? 1.0 : 0.85; // 🔹 single page más grande
+}, [isMobile, viewMode]);
+
   const bookW = Math.round(pageWidth * renderScale);
   const bookH = Math.round(bookW * aspect);
 
