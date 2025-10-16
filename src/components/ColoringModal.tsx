@@ -1,6 +1,4 @@
-import { useRef, useState } from "react";
-import { ReactSketchCanvas } from "react-sketch-canvas";
-import type { ReactSketchCanvasRef } from "react-sketch-canvas";
+import { useEffect, useRef, useState } from "react";
 import "../styles/ColoringModal.scss";
 
 interface ColoringModalProps {
@@ -9,66 +7,151 @@ interface ColoringModalProps {
 }
 
 export default function ColoringModal({ id, onClose }: ColoringModalProps) {
-  const canvasRef = useRef<ReactSketchCanvasRef>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [ctx, setCtx] = useState<CanvasRenderingContext2D | null>(null);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
-  const [strokeColor, setStrokeColor] = useState("#000000");
-  const [strokeWidth, setStrokeWidth] = useState(4);
+  const [fillColor, setFillColor] = useState("#ff0000");
   const [showFullPalette, setShowFullPalette] = useState(false);
 
   // 🖼️ Imagen base
-  const imageSrc = "/img/cartillas/jardin/1.png";
+  const imageSrc = "/img/cartillas/jardin/1.svg";
 
-  // 🧹 Limpiar
-  const clearDrawing = () => canvasRef.current?.clearCanvas();
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const context = canvas.getContext("2d");
+      setCtx(context);
+    }
+  }, []);
 
-  // 🩹 Borrar (color blanco)
-  const activateEraser = () => setStrokeColor("#ffffff");
+  useEffect(() => {
+    if (ctx) {
+      const img = new Image();
+      img.src = imageSrc;
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, ctx.canvas.width, ctx.canvas.height);
+        setImageLoaded(true);
+      };
+    }
+  }, [ctx]);
 
-  // 💾 Descargar imagen combinada (fondo + dibujo)
-  const downloadDrawing = async () => {
-  if (!canvasRef.current) return;
-
-  // 1️⃣ Obtiene la imagen combinada del canvas (solo los trazos)
-  const drawing = await canvasRef.current.exportImage("png");
-
-  // 2️⃣ Mide el tamaño real del área visible en el modal
-  const area = document.querySelector(".coloring-area") as HTMLElement;
-  if (!area) return;
-
-  const rect = area.getBoundingClientRect();
-  const width = Math.round(rect.width);
-  const height = Math.round(rect.height);
-
-  // 3️⃣ Crea un canvas del tamaño visible actual
-  const base = document.createElement("canvas");
-  base.width = width;
-  base.height = height;
-
-  const ctx = base.getContext("2d");
+  // 🎨 Flood fill (relleno tipo Paint)
+ const floodFill = (x: number, y: number, fillColor: string) => {
   if (!ctx) return;
+  const { width, height } = ctx.canvas;
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const data = imageData.data;
 
-  // 4️⃣ Dibuja la imagen base
-  const img = new Image();
-  img.src = imageSrc;
-  img.onload = () => {
-    ctx.drawImage(img, 0, 0, width, height);
+  const stack: [number, number][] = [[x, y]];
+  const startPos = (y * width + x) * 4;
+  const targetColor = data.slice(startPos, startPos + 3);
 
-    // 5️⃣ Dibuja los trazos encima
-    const drawingImg = new Image();
-    drawingImg.src = drawing!;
-    drawingImg.onload = () => {
-      ctx.drawImage(drawingImg, 0, 0, width, height);
-
-      // 6️⃣ Exporta al tamaño correcto (igual que el modal)
-      const finalImage = base.toDataURL("image/png");
-      const link = document.createElement("a");
-      link.href = finalImage;
-      link.download = "mi_dibujo.png";
-      link.click();
-    };
+  const hexToRgb = (hex: string) => {
+    const bigint = parseInt(hex.slice(1), 16);
+    return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
   };
+
+  const [rF, gF, bF] = hexToRgb(fillColor);
+
+  const colorMatch = (pos: number) => {
+    const r = data[pos];
+    const g = data[pos + 1];
+    const b = data[pos + 2];
+    const tolerance = 40; // 🔹 margen de tolerancia
+    return (
+      Math.abs(r - targetColor[0]) < tolerance &&
+      Math.abs(g - targetColor[1]) < tolerance &&
+      Math.abs(b - targetColor[2]) < tolerance
+    );
+  };
+
+  let processed = 0;
+  const maxPixels = 1000000; // 🔹 evita bloquear el navegador
+
+  while (stack.length && processed < maxPixels) {
+    let [px, py] = stack.pop()!;
+    let currentPos = (py * width + px) * 4;
+
+    // Sube hasta encontrar límite
+    while (py >= 0 && colorMatch(currentPos)) {
+      py--;
+      currentPos -= width * 4;
+    }
+
+    py++;
+    currentPos += width * 4;
+    let reachLeft = false;
+    let reachRight = false;
+
+    while (py < height && colorMatch(currentPos)) {
+      // Pinta píxel
+      data[currentPos] = rF;
+      data[currentPos + 1] = gF;
+      data[currentPos + 2] = bF;
+      data[currentPos + 3] = 255;
+      processed++;
+
+      if (processed > maxPixels) break;
+
+      if (px > 0) {
+        if (colorMatch(currentPos - 4)) {
+          if (!reachLeft) {
+            stack.push([px - 1, py]);
+            reachLeft = true;
+          }
+        } else if (reachLeft) {
+          reachLeft = false;
+        }
+      }
+
+      if (px < width - 1) {
+        if (colorMatch(currentPos + 4)) {
+          if (!reachRight) {
+            stack.push([px + 1, py]);
+            reachRight = true;
+          }
+        } else if (reachRight) {
+          reachRight = false;
+        }
+      }
+
+      py++;
+      currentPos += width * 4;
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
 };
 
+  // 🖱️ Click en canvas → rellena zona
+  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!ctx || !imageLoaded) return;
+    const rect = ctx.canvas.getBoundingClientRect();
+    const x = Math.floor(((e.clientX - rect.left) / rect.width) * ctx.canvas.width);
+    const y = Math.floor(((e.clientY - rect.top) / rect.height) * ctx.canvas.height);
+    floodFill(x, y, fillColor);
+  };
+
+  // 💾 Descargar imagen
+  const downloadDrawing = () => {
+    if (!ctx) return;
+    const link = document.createElement("a");
+    link.download = "mi_coloreo.png";
+    link.href = ctx.canvas.toDataURL("image/png");
+    link.click();
+  };
+
+  // 🧹 Limpiar (recarga imagen)
+  const clearDrawing = () => {
+    if (!ctx) return;
+    const img = new Image();
+    img.src = imageSrc;
+    img.onload = () => {
+      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      ctx.drawImage(img, 0, 0, ctx.canvas.width, ctx.canvas.height);
+    };
+  };
 
   const basicColors = [
     "#000000",
@@ -97,8 +180,8 @@ export default function ColoringModal({ id, onClose }: ColoringModalProps) {
       <div className="large-modal">
         <button className="close-btn" onClick={onClose}>✖</button>
 
-        <h2>🎨 Actividad para colorear</h2>
-        <p>Pinta, elige colores, borra y descarga tu dibujo</p>
+        <h2>🎨 Colorea con un clic</h2>
+        <p>Selecciona un color y haz clic en la zona que quieras rellenar.</p>
 
         {/* Paleta */}
         <div className="palette">
@@ -108,9 +191,9 @@ export default function ColoringModal({ id, onClose }: ColoringModalProps) {
               className="color-btn"
               style={{
                 backgroundColor: color,
-                border: strokeColor === color ? "3px solid #333" : "2px solid #ccc",
+                border: fillColor === color ? "3px solid #333" : "2px solid #ccc",
               }}
-              onClick={() => setStrokeColor(color)}
+              onClick={() => setFillColor(color)}
             />
           ))}
 
@@ -120,15 +203,6 @@ export default function ColoringModal({ id, onClose }: ColoringModalProps) {
           >
             🎨 Más colores
           </button>
-
-          <input
-            type="range"
-            min="1"
-            max="25"
-            value={strokeWidth}
-            onChange={(e) => setStrokeWidth(Number(e.target.value))}
-            className="thickness-slider"
-          />
         </div>
 
         {showFullPalette && (
@@ -139,10 +213,10 @@ export default function ColoringModal({ id, onClose }: ColoringModalProps) {
                 className="color-square"
                 style={{
                   backgroundColor: color,
-                  border: strokeColor === color ? "2px solid #000" : "1px solid #ccc",
+                  border: fillColor === color ? "2px solid #000" : "1px solid #ccc",
                 }}
                 onClick={() => {
-                  setStrokeColor(color);
+                  setFillColor(color);
                   setShowFullPalette(false);
                 }}
               />
@@ -150,29 +224,21 @@ export default function ColoringModal({ id, onClose }: ColoringModalProps) {
           </div>
         )}
 
-        {/* 🖼️ Imagen + Canvas */}
+        {/* Canvas */}
         <div className="coloring-area">
-          <img
-            src={imageSrc}
-            alt="Para colorear"
-            className="coloring-image"
-          />
-
-          <ReactSketchCanvas
+          <canvas
             ref={canvasRef}
-            strokeWidth={strokeWidth}
-            strokeColor={strokeColor}
-            canvasColor="transparent"
             className="coloring-canvas"
+            width={1100}
+            height={500}
+            onClick={handleCanvasClick}
           />
         </div>
 
-        {/* 🔘 Botones inferiores */}
+        {/* Botones */}
         <div style={{ display: "flex", justifyContent: "center", gap: "10px" }}>
           <button className="modal-btn" onClick={clearDrawing}>🧹 Limpiar</button>
-          <button className="modal-btn" onClick={activateEraser}>🩹 Borrar</button>
           <button className="modal-btn" onClick={downloadDrawing}>💾 Descargar</button>
-          
         </div>
       </div>
     </div>
