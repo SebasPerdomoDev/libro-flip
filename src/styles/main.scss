@@ -551,3 +551,28 @@
   z-index: 999;
   animation: fadeIn 0.3s ease;
 }
+/* =========================================================
+   🚫 Desactivar totalmente el clic dentro del libro
+========================================================= */
+
+/* Bloquea interacciones dentro de las páginas */
+.book,
+.page-wrapper,
+.no-click,
+.book-page {
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+/* Permite clics SOLO en elementos de control */
+.nav-arrow,
+.page-indicator,
+.book-mode-toggle,
+.click-zone {
+  pointer-events: auto !important;
+}
+
+/* Evita tap accidental en móviles */
+.flip-wrap {
+  touch-action: none;
+}

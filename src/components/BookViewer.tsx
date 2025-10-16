@@ -5,56 +5,82 @@ import {
   forwardRef,
   useCallback,
   useMemo,
+  memo,
 } from "react";
 import type { ReactNode } from "react";
 import HTMLFlipBook from "react-pageflip";
-import { Document, Page, pdfjs } from "react-pdf";
-import type { PDFPageProxy } from "pdfjs-dist";
-import workerSrc from "pdfjs-dist/build/pdf.worker.min.js?url";
-import { Maximize2, Minimize2 } from "lucide-react"; // ✅ Iconos para vista
-import ColoringModal from "./ColoringModal"; 
-
-pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+import { Maximize2, Minimize2 } from "lucide-react";
+import ColoringModal from "./ColoringModal";
 
 /* ---------- Props ---------- */
 interface PagePaperProps {
   children?: ReactNode;
 }
 interface BookViewerProps {
-  file?: string;
+  totalPages: number;
+  basePath: string;
 }
 
-/* ---------- Contenedor de página ---------- */
-const PagePaper = forwardRef<HTMLDivElement, PagePaperProps>(
-  ({ children }, ref) => (
+/* ---------- Página ---------- */
+const PagePaper = memo(
+  forwardRef<HTMLDivElement, PagePaperProps>(({ children }, ref) => (
     <div ref={ref} className="page-wrapper">
       {children}
     </div>
-  )
+  ))
 );
+PagePaper.displayName = "PagePaper";
+
+/* ---------- Imagen optimizada ---------- */
+const LazyImage = ({ src, alt }: { src: string; alt: string }) => {
+  const [visible, setVisible] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const ref = useRef<HTMLImageElement>(null);
+
+  useEffect(() => {
+    const obs = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) setVisible(true);
+    });
+    if (ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, []);
+
+  return (
+    <img
+      ref={ref}
+      src={visible ? src : ""}
+      alt={alt}
+      loading="lazy"
+      decoding="async"
+      onLoad={() => setLoaded(true)}
+      draggable={false}
+      style={{
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+        opacity: loaded ? 1 : 0,
+        transition: "opacity 0.25s ease-out",
+        transform: "translateZ(0)",
+        willChange: "transform, opacity",
+        backfaceVisibility: "hidden",
+      }}
+    />
+  );
+};
 
 /* ---------- Componente principal ---------- */
-export default function BookViewer({
-  file = "/libros/PARVULOS.pdf",
-}: BookViewerProps) {
+export default function BookViewer({ totalPages, basePath }: BookViewerProps) {
   const flipRef = useRef<any>(null);
   const shellRef = useRef<HTMLDivElement>(null);
-  const viewerRef = useRef<HTMLDivElement>(null);
-  const indicatorRef = useRef<HTMLDivElement>(null);
 
-  const [numPages, setNumPages] = useState(0);
-  const [aspect, setAspect] = useState(0.72);// Proporción alto/ancho
+  const [aspect] = useState(0.7);
   const [pageWidth, setPageWidth] = useState(1100);
   const [currentPage, setCurrentPage] = useState(0);
-  const [isLoaded, setIsLoaded] = useState(false);
   const [isPortrait, setIsPortrait] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [editing, setEditing] = useState(false);
   const [inputValue, setInputValue] = useState("");
-
-  // ✅ Estado para vista doble / una página
   const [viewMode, setViewMode] = useState<"single" | "double">("double");
-  const [reloading, setReloading] = useState(false);
 
   /* 🎨 Modal */
   const [showActivity, setShowActivity] = useState(false);
@@ -64,32 +90,19 @@ export default function BookViewer({
     setActivityId(id);
     setShowActivity(true);
   };
-
   const closeModal = () => {
     setShowActivity(false);
     setActivityId(null);
   };
 
-  /* --- Detectar proporciones del PDF --- */
-  const onFirstPageLoad = useCallback((page: PDFPageProxy) => {
-    const w = page.view[2] - page.view[0];
-    const h = page.view[3] - page.view[1];
-    if (w > 0 && h > 0) setAspect(h / w);
-  }, []);
-
-  const onDocLoad = ({ numPages }: { numPages: number }) => {
-    setNumPages(numPages);
-    setIsLoaded(true);
-  };
-
-  /* --- Resize responsivo --- */
+  /* 📏 Resize */
   const doResize = useCallback(() => {
     if (!shellRef.current) return;
     const shell = shellRef.current.getBoundingClientRect();
     const availW = Math.max(300, shell.width - 220);
     const availH = Math.max(200, shell.height - 160);
-    const w = Math.min(availW, Math.round(availH / aspect));
-    setPageWidth(w);
+    const newWidth = Math.min(availW, Math.round(availH / aspect));
+    setPageWidth((prev) => (prev !== newWidth ? newWidth : prev));
   }, [aspect]);
 
   useEffect(() => {
@@ -111,61 +124,45 @@ export default function BookViewer({
     };
   }, [doResize]);
 
-  /* --- Dimensiones visuales del libro --- */
-  const renderScale = 1;
-  const visualZoom = useMemo(() => {
-  if (isMobile) return 0.85;
-  return viewMode === "single" ? 1.0 : 0.85; // 🔹 single page más grande
-}, [isMobile, viewMode]);
+  /* 📚 Lista de imágenes */
+  const pages = useMemo(
+    () => Array.from({ length: totalPages }, (_, i) => `${basePath}${i + 1}.webp`),
+    [basePath, totalPages]
+  );
 
-  const bookW = Math.round(pageWidth * renderScale);
-  const bookH = Math.round(bookW * aspect);
+  /* 👁️ Control de render */
+  const visiblePages = useMemo(() => {
+    if (viewMode === "single") return new Set(pages.map((_, i) => i));
+    const prev = Math.max(currentPage - 1, 0);
+    const next = Math.min(currentPage + 1, totalPages - 1);
+    return new Set([prev, currentPage, next]);
+  }, [currentPage, totalPages, viewMode, pages]);
 
-  /* ============================
-     🧩  Zonas interactivas
-  ============================ */
-  interface InteractiveZone {
-    id: string;
-    top: string;
-    left: string;
-    width: string;
-    height: string;
-  }
+  /* 🔄 Precarga siguiente página */
+  useEffect(() => {
+    const next = Math.min(currentPage + 1, totalPages - 1);
+    const img = new Image();
+    img.src = pages[next];
+  }, [currentPage, pages, totalPages]);
 
-  const interactiveZones: Record<number, InteractiveZone[]> = {
-    1: [
-      {
-        id: "actividad-oso",
-        top: "50%",
-        left: "50%",
-        width: "30%",
-        height: "30%",
-      },
-    ],
-  };
-
-  /* ---------- Navegación ---------- */
-  const goPrev = useCallback(() => {
+  /* 🔍 Navegación */
+  const goPrev = () => {
     const api = flipRef.current?.pageFlip?.();
     if (api && currentPage > 0) api.flipPrev();
-  }, [currentPage]);
-
-  const goNext = useCallback(() => {
+  };
+  const goNext = () => {
     const api = flipRef.current?.pageFlip?.();
-    if (api && currentPage < numPages - 1) api.flipNext();
-  }, [currentPage, numPages]);
-
-  const onFlip = useCallback((e: { data: number }) => setCurrentPage(e.data), []);
+    if (api && currentPage < totalPages - 1) api.flipNext();
+  };
+  const onFlip = (e: { data: number }) => setCurrentPage(e.data);
 
   const goToPage = (target: number) => {
     const api = flipRef.current?.pageFlip?.();
-    if (api && !isNaN(target)) {
-      const index = Math.min(Math.max(target - 1, 0), numPages - 1);
-      api.turnToPage(index);
-      setCurrentPage(index);
-    }
+    if (!api || isNaN(target)) return;
+    const index = Math.min(Math.max(target - 1, 0), totalPages - 1);
+    api.turnToPage(index);
+    setCurrentPage(index);
   };
-
   const handleSearch = () => {
     const num = parseInt(inputValue, 10);
     if (!isNaN(num)) {
@@ -174,166 +171,93 @@ export default function BookViewer({
     }
   };
 
-  // --- click fuera del buscador ---
+  /* ⚙️ Mantener página actual al cambiar vista */
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        editing &&
-        indicatorRef.current &&
-        !indicatorRef.current.contains(e.target as Node)
-      ) {
-        setEditing(false);
+    const timer = setTimeout(() => {
+      const api = flipRef.current?.pageFlip?.();
+      if (api && typeof api.turnToPage === "function") {
+        api.turnToPage(currentPage);
       }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [editing]);
+    }, 200); // pequeño delay tras reconstrucción del flipbook
+    return () => clearTimeout(timer);
+  }, [viewMode, currentPage]);
 
-  const pagesToRender = useMemo(() => {
-    if (!numPages) return [];
-    return [currentPage - 1, currentPage, currentPage + 1].filter(
-      (i) => i >= 0 && i < numPages
-    );
-  }, [currentPage, numPages]);
+  const visualZoom = useMemo(() => {
+    if (isMobile) return 0.85;
+    return viewMode === "single" ? 1.0 : 0.85;
+  }, [isMobile, viewMode]);
 
-  /* =========================================================
-     💡 Cambiar modo de vista (con reload controlado)
-  ========================================================= */
-  const toggleToDouble = () => {
-    if (viewMode !== "double") {
-      setReloading(true);
-      setViewMode("double");
-    }
-  };
+  const bookW = Math.round(pageWidth);
+  const bookH = Math.round(bookW * aspect);
 
-  const toggleToSingle = () => {
-    if (viewMode !== "single") {
-      setReloading(true);
-      setViewMode("single");
-    }
-  };
-
-  // Mantener la misma página tras cambio de modo
-  useEffect(() => {
-    if (flipRef.current?.pageFlip && numPages > 0) {
-      const api = flipRef.current.pageFlip();
-      if (api) api.turnToPage(currentPage);
-    }
-  }, [viewMode]);
-
-  /* =========================================================
-     🖼️ Render principal
-  ========================================================= */
+  /* ---------- Render ---------- */
   return (
     <>
       <div className="book-shell" ref={shellRef}>
-        {/* ✅ Botones para cambiar vista */}
+        {/* 🔘 Botones de vista */}
         <div className="book-mode-toggle">
           <button
             className={`mode-btn ${viewMode === "double" ? "active" : ""}`}
-            onClick={toggleToDouble}
+            onClick={() => setViewMode("double")}
             title="Vista doble página"
           >
             <Maximize2 size={18} />
           </button>
           <button
             className={`mode-btn ${viewMode === "single" ? "active" : ""}`}
-            onClick={toggleToSingle}
+            onClick={() => setViewMode("single")}
             title="Vista una sola página"
           >
             <Minimize2 size={18} />
           </button>
         </div>
 
-        {/* 🧾 Contenedor principal */}
+        {/* 📖 Libro */}
         <div
           className={`flip-wrap ${isPortrait ? "force-landscape" : ""}`}
-          ref={viewerRef}
-          style={
-            {
-              ["--book-w" as any]: `${bookW}px`,
-              ["--book-h" as any]: `${bookH}px`,
-              ["--zoom" as any]: visualZoom,
-            } as any
-          }
+          style={{
+            ["--book-w" as any]: `${bookW}px`,
+            ["--book-h" as any]: `${bookH}px`,
+            ["--zoom" as any]: visualZoom,
+          } as any}
         >
-          <div className="book-viewer-pdf">
-            <Document
-              file={file}
-              onLoadSuccess={onDocLoad}
-              loading={<div className="p-4 text-center">Cargando PDF…</div>}
-            >
-              {isLoaded && numPages > 0 && (
-                <>
-                  {reloading && (
-                    <div className="book-loading">
-                      <p>Cargando vista...</p>
-                    </div>
+          <HTMLFlipBook
+            key={viewMode}
+            ref={flipRef}
+            className="book shadow"
+            width={bookW}
+            height={bookH}
+            size="fixed"
+            usePortrait={viewMode === "single"}
+            drawShadow
+            maxShadowOpacity={0.4}
+            flippingTime={550}
+            showPageCorners={false}
+            clickEventForward={false}
+            mobileScrollSupport={false}
+            onFlip={onFlip}
+          >
+            {pages.map((src, i) => (
+              <PagePaper key={i}>
+                <div className="page-container">
+                  {visiblePages.has(i) ? (
+                    <LazyImage src={src} alt={`Página ${i + 1}`} />
+                  ) : (
+                    <div
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        background: "#f5f5f5",
+                      }}
+                    />
                   )}
-
-                  <HTMLFlipBook
-                    key={viewMode}
-                    ref={flipRef}
-                    className="book shadow"
-                    width={bookW}
-                    height={bookH}
-                    size="fixed"
-                    usePortrait={viewMode === "single"}
-                    drawShadow
-                    useMouseEvents={false}
-                    disableFlipByClick={true}
-                    clickEventForward={true}
-                    showPageCorners={false}
-                    onFlip={onFlip}
-                    style={{
-                      margin: "0 auto",
-                      opacity: reloading ? 0 : 1,
-                      transition: "opacity 0.3s ease",
-                    }}
-                  >
-                    {Array.from({ length: numPages }, (_, i) => (
-                      <PagePaper key={i}>
-                        {pagesToRender.includes(i) && (
-                          <div className="page-container">
-                            <Page
-                              pageNumber={i + 1}
-                              width={bookW}
-                              scale={1.5}
-                              renderTextLayer={false}
-                              renderAnnotationLayer={false}
-                              onLoadSuccess={() => {
-                                // 👇 Espera a que las páginas se dibujen antes de mostrar
-                                if (i === currentPage) {
-                                  setTimeout(() => {
-                                    setReloading(false);
-                                    const api = flipRef.current?.pageFlip?.();
-                                    if (api) api.turnToPage(currentPage);
-                                  }, 200);
-                                }
-                              }}
-                              className="book-page"
-                            />
-                            {interactiveZones[i + 1]?.map((zone) => (
-                              <div
-                                key={zone.id}
-                                className="click-zone"
-                                style={zone}
-                                onClick={() => openModal(zone.id)}
-                              />
-                            ))}
-                          </div>
-                        )}
-                      </PagePaper>
-                    ))}
-                  </HTMLFlipBook>
-
-                </>
-              )}
-            </Document>
-          </div>
+                </div>
+              </PagePaper>
+            ))}
+          </HTMLFlipBook>
         </div>
 
-        {/* ✅ Flechas fuera del contenedor */}
+        {/* Flechas */}
         <button
           className="nav-arrow nav-arrow-left"
           onClick={goPrev}
@@ -344,49 +268,45 @@ export default function BookViewer({
         <button
           className="nav-arrow nav-arrow-right"
           onClick={goNext}
-          disabled={currentPage >= numPages - 1}
+          disabled={currentPage >= totalPages - 1}
         >
           →
         </button>
 
-        {/* Indicador de página */}
-        {isLoaded && numPages > 0 && (
-          <div
-            ref={indicatorRef}
-            className="page-indicator page-indicator-top"
-            onClick={() => {
-              if (!editing) {
-                setEditing(true);
-                setInputValue("");
-              }
-            }}
-          >
-            {!editing ? (
-              <>Página {currentPage + 1} de {numPages}</>
-            ) : (
-              <div className="page-search">
-                <input
-                  className="page-input"
-                  type="number"
-                  placeholder="Ir a..."
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSearch();
-                    if (e.key === "Escape") setEditing(false);
-                  }}
-                  autoFocus
-                />
-                <button className="page-search-btn" onClick={handleSearch}>
-                  🔍
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+        {/* 📄 Indicador */}
+        <div
+          className="page-indicator page-indicator-top"
+          onClick={() => {
+            if (!editing) {
+              setEditing(true);
+              setInputValue("");
+            }
+          }}
+        >
+          {!editing ? (
+            <>Página {currentPage + 1} de {totalPages}</>
+          ) : (
+            <div className="page-search">
+              <input
+                className="page-input"
+                type="number"
+                placeholder="Ir a..."
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSearch();
+                  if (e.key === "Escape") setEditing(false);
+                }}
+                autoFocus
+              />
+              <button className="page-search-btn" onClick={handleSearch}>
+                🔍
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* 🎨 Modal de colorear */}
       {showActivity && activityId && (
         <ColoringModal id={activityId} onClose={closeModal} />
       )}
