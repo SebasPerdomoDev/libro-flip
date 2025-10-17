@@ -11,7 +11,8 @@ import type { ReactNode } from "react";
 import HTMLFlipBook from "react-pageflip";
 import { Maximize2, Minimize2 } from "lucide-react";
 import ColoringModal from "./ColoringModal";
-import Galaxy from "./animation/Galaxy";
+import Galaxy from "./animation/GalaxyBackground";
+import GalaxyBackground from "./animation/GalaxyBackground";
 
 
 /* ---------- Props ---------- */
@@ -214,7 +215,7 @@ export default function BookViewer({ totalPages, basePath }: BookViewerProps) {
     <>
       <div className="book-shell" ref={shellRef}>
         {/* 🌌 Fondo animado */}
-        <Galaxy
+        <GalaxyBackground
           mouseRepulsion={false}
           mouseInteraction={false}
           density={1.2}
