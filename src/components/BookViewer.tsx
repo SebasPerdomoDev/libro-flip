@@ -54,16 +54,7 @@ const LazyImage = ({ src, alt }: { src: string; alt: string }) => {
       decoding="async"
       onLoad={() => setLoaded(true)}
       draggable={false}
-      style={{
-        width: "100%",
-        height: "100%",
-        objectFit: "cover",
-        opacity: loaded ? 1 : 0,
-        transition: "opacity 0.25s ease-out",
-        transform: "translateZ(0)",
-        willChange: "transform, opacity",
-        backfaceVisibility: "hidden",
-      }}
+      className={`book-page ${loaded ? "loaded" : ""}`}
     />
   );
 };
@@ -72,6 +63,7 @@ const LazyImage = ({ src, alt }: { src: string; alt: string }) => {
 export default function BookViewer({ totalPages, basePath }: BookViewerProps) {
   const flipRef = useRef<any>(null);
   const shellRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
 
   const [aspect] = useState(0.7);
   const [pageWidth, setPageWidth] = useState(1100);
@@ -80,6 +72,7 @@ export default function BookViewer({ totalPages, basePath }: BookViewerProps) {
   const [isMobile, setIsMobile] = useState(false);
   const [editing, setEditing] = useState(false);
   const [inputValue, setInputValue] = useState("");
+  const [fadeClass, setFadeClass] = useState(""); // 🆕 control animación
   const [viewMode, setViewMode] = useState<"single" | "double">("double");
 
   /* 🎨 Modal */
@@ -167,20 +160,44 @@ export default function BookViewer({ totalPages, basePath }: BookViewerProps) {
     const num = parseInt(inputValue, 10);
     if (!isNaN(num)) {
       goToPage(num);
-      setEditing(false);
+      handleCloseSearch(); // 🆕 cierre con animación
     }
   };
 
-  /* ⚙️ Mantener página actual al cambiar vista */
+  /* 🆕 función para cerrar con animación */
+  const handleCloseSearch = () => {
+    setFadeClass("fade-out");
+    setTimeout(() => {
+      setEditing(false);
+      setFadeClass("");
+    }, 150);
+  };
+
+  /* ⚙️ Mantener página al cambiar vista */
   useEffect(() => {
     const timer = setTimeout(() => {
       const api = flipRef.current?.pageFlip?.();
       if (api && typeof api.turnToPage === "function") {
         api.turnToPage(currentPage);
       }
-    }, 200); // pequeño delay tras reconstrucción del flipbook
+    }, 200);
     return () => clearTimeout(timer);
   }, [viewMode, currentPage]);
+
+  /* 🆕 Cerrar buscador al hacer clic fuera */
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        editing &&
+        searchRef.current &&
+        !searchRef.current.contains(e.target as Node)
+      ) {
+        handleCloseSearch();
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [editing]);
 
   const visualZoom = useMemo(() => {
     if (isMobile) return 0.85;
@@ -241,15 +258,15 @@ export default function BookViewer({ totalPages, basePath }: BookViewerProps) {
               <PagePaper key={i}>
                 <div className="page-container">
                   {visiblePages.has(i) ? (
-                    <LazyImage src={src} alt={`Página ${i + 1}`} />
+                    <>
+                      <LazyImage src={src} alt={`Página ${i + 1}`} />
+                      <div
+                        className="click-zone"
+                        onClick={() => openModal(`page-${i + 1}`)}
+                      />
+                    </>
                   ) : (
-                    <div
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        background: "#f5f5f5",
-                      }}
-                    />
+                    <div className="page-placeholder" />
                   )}
                 </div>
               </PagePaper>
@@ -275,11 +292,13 @@ export default function BookViewer({ totalPages, basePath }: BookViewerProps) {
 
         {/* 📄 Indicador */}
         <div
-          className="page-indicator page-indicator-top"
+          className={`page-indicator page-indicator-top ${fadeClass}`} // 🆕
+          ref={searchRef}
           onClick={() => {
             if (!editing) {
               setEditing(true);
               setInputValue("");
+              setFadeClass("fade-in");
             }
           }}
         >
@@ -295,7 +314,7 @@ export default function BookViewer({ totalPages, basePath }: BookViewerProps) {
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleSearch();
-                  if (e.key === "Escape") setEditing(false);
+                  if (e.key === "Escape") handleCloseSearch();
                 }}
                 autoFocus
               />

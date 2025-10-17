@@ -1,578 +1,105 @@
-/* ========================
-   Indicador de página vertical
-======================== */
-.page-indicator-top {
-  position: absolute;
-  top: 50%;
-  right: 10px;
-  left: auto;
-  transform: translateY(-50%) rotate(90deg);
-  background: rgba(255, 255, 255, 0.95);
-  color: #222;
-  padding: 6px 12px;
-  font-size: 0.9rem;
-  border-radius: 8px;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-  z-index: 250;
-  user-select: none;
-}
-
-/* 🖥️ En pantallas grandes, vuelve centrado arriba */
-@media (min-width: 601px) {
-  .page-indicator-top {
-    top: 16px;
-    left: 50%;
-    right: auto;
-    transform: translateX(-50%) rotate(0deg);
-    font-size: 1rem;
-  }
-}
-
-/* ========================
-   Indicador vertical móvil
-======================== */
-@media (max-width: 600px) {
-  .page-indicator-top {
-    top: 50%;
-    right: 8px;
-    left: auto;
-    transform: translateY(-50%) rotate(90deg);
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(4px);
-    border: 1px solid rgba(0, 0, 0, 0.2);
-    font-size: 0.9rem;
-    padding: 4px 10px;
-    border-radius: 10px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-    color: #333;
-    z-index: 200;
-    white-space: nowrap;
-  }
-}
-
-/* ========================
-   Escala general móvil
-======================== */
-@media (max-width: 600px) {
-  .flip-wrap {
-    transform: scale(0.75);
-    transform-origin: center center;
-  }
-
-  .book {
-    transform: scale(0.9);
-    transform-origin: center center;
-  }
-
-  .book-viewer-pdf {
-    justify-content: center;
-    align-items: center;
-    display: flex;
-  }
-}
-
-/* ========================
-   Indicador inferior
-======================== */
-.page-indicator {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #fff;
-  color: #333;
-  font-size: 1.1rem;
-  padding: 6px 18px;
-  border-radius: 12px;
-  border: 2px solid #a8a8a8;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  z-index: 120;
-  font-weight: 500;
-  cursor: pointer;
-
-  .page-search {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .page-input {
-    width: 50px;
-    border: none;
-    border-bottom: 2px solid #a8a8a8;
-    text-align: center;
-    font-weight: 600;
-    font-size: 1rem;
-    outline: none;
-    background: transparent;
-    margin: 0 6px;
-    color: #555;
-
-    &:focus {
-      border-color: #333;
-    }
-
-    @media (max-width: 600px) {
-      width: 40px;
-      font-size: 0.9rem;
-    }
-
-    &::-webkit-inner-spin-button,
-    &::-webkit-outer-spin-button {
-      -webkit-appearance: none;
-      margin: 0;
-    }
-  }
-
-  .page-search-btn {
-    background: transparent;
-    border: none;
-    font-size: 1.1rem;
-    cursor: pointer;
-    padding: 2px 4px;
-    transition: transform 0.2s;
-
-    &:hover {
-      transform: scale(1.1);
-    }
-  }
-}
-
-.page-indicator-bottom {
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  position: absolute;
-}
-
-@media (max-width: 600px) {
-  .page-indicator-bottom {
-    bottom: 10px;
-    font-size: 1rem;
-    padding: 4px 10px;
-  }
-}
-
-/* ========================
-   Contenedor general
-======================== */
+/* =============== CONTENEDORES =============== */
 .book-shell {
-  max-width: none;
   width: 100vw;
   height: 100dvh;
-  padding: 0;
-  margin: 0;
   display: flex;
   flex-direction: column;
   background: #f5f5f5;
   position: relative;
+  overflow: hidden;
 }
 
-/* =========================================================
-   📏 Perspectiva + Zoom visual del libro
-========================================================= */
 .flip-wrap {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: visible; /* ✅ permite que el libro se vea completo */
   position: relative;
   height: 100%;
-  perspective: 2600px;
-  transform: scale(var(--zoom, 0.9)); /* 📏 más cerca por defecto */
+  perspective: 2400px;
+  transform: scale(var(--zoom, 0.9));
   transform-origin: center center;
-  padding: 40px 60px; /* ✅ espacio extra para que no se recorte */
+  padding: 40px 60px;
 }
 
+.book { filter: drop-shadow(0 10px 25px rgba(0,0,0,.15)); border-radius: 8px; overflow: hidden; background: #fff; }
 
-.book-viewer-pdf {
-  width: 100%;
-  max-width: 100vw;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  transform: translateY(5%);
-  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.18));
+/* =============== PÁGINAS =============== */
+.page-wrapper { width: 100%; height: 100%; background: #fff; position: relative; overflow: hidden; }
+.page-container { width: 100%; height: 100%; position: relative; }
+.book-page { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity .25s ease; }
+.book-page.loaded { opacity: 1; }
+.page-placeholder { width: 100%; height: 100%; background: #f5f5f5; }
+
+/* =============== INDICADOR / BUSCADOR =============== */
+.page-indicator-top {
+  position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+  background: #fff; color: #333; font-size: 1rem; padding: 6px 16px; border-radius: 12px;
+  border: 2px solid #bcbcbc; box-shadow: 0 2px 8px rgba(0,0,0,.15); font-weight: 500; cursor: pointer; z-index: 200;
 }
-
-.book {
-  margin: 0 auto;
+.page-indicator-top .page-search { display: flex; align-items: center; gap: 6px; }
+.page-indicator-top .page-input {
+  width: 55px; border: none; border-bottom: 2px solid #aaa; text-align: center; font-size: 1rem; font-weight: 600;
+  outline: none; background: transparent; color: #333;
 }
+.page-indicator-top .page-input:focus { border-color: #000; }
+.page-indicator-top .page-input::-webkit-inner-spin-button,
+.page-indicator-top .page-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.page-indicator-top .page-search-btn { background: transparent; border: none; cursor: pointer; font-size: 1.2rem; transition: .2s; }
+.page-indicator-top .page-search-btn:hover { transform: scale(1.15); }
 
-.page-wrapper {
-  width: 100%;
-  height: 100%;
-  background: #fff;
-  overflow: hidden;
-  position: relative;
-}
-
-.page-wrapper canvas {
-  display: block;
-  width: 100% !important;
-  height: auto !important;
-}
-
-/* ========================
-   Flechas de navegación
-======================== */
+/* =============== FLECHAS =============== */
 .nav-arrow {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 100;
-  background: rgba(255, 255, 255, 0.9);
-  border: none;
-  border-radius: 50%;
-  width: 48px;
-  height: 48px;
-  font-size: 2rem;
-  color: #333;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  cursor: pointer;
-  transition: background 0.2s, box-shadow 0.2s, opacity 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: fixed; top: 50%; transform: translateY(-50%); z-index: 1000;
+  background: rgba(255,255,255,.95); border: none; border-radius: 50%;
+  width: 50px; height: 50px; font-size: 2rem; color: #333; box-shadow: 0 3px 10px rgba(0,0,0,.25);
+  cursor: pointer; transition: .2s ease;
 }
+.nav-arrow:hover { background: #24c8c1; color: #fff; transform: translateY(-50%) scale(1.1); }
+.nav-arrow:disabled { opacity: .5; cursor: not-allowed; }
+.nav-arrow-left { left: 24px; }
+.nav-arrow-right { right: 24px; }
 
-.nav-arrow:hover {
-  background: #e0e0e0;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+/* =============== BOTONES DE VISTA =============== */
+.book-mode-toggle { position: absolute; top: 14px; right: 16px; display: flex; gap: 8px; z-index: 999; }
+.book-mode-toggle .mode-btn {
+  background: #fff; border: 1.8px solid #ccc; border-radius: 8px; padding: 6px; cursor: pointer; transition: .25s ease;
+  display: flex; align-items: center; justify-content: center;
 }
+.book-mode-toggle .mode-btn:hover { background: #f3f3f3; transform: scale(1.05); }
+.book-mode-toggle .mode-btn.active { background: #0e2962; border-color: #0e2962; color: #fff; }
 
-.nav-arrow-left {
-  left: 16px;
+/* =============== CLICK-ZONE (hotspot que abre modal) =============== */
+.click-zone {
+  position: absolute; bottom: 20px; right: 20px;
+  width: 44px; height: 44px; border-radius: 10px;
+  background: rgba(36,200,193,.95);
+  box-shadow: 0 4px 12px rgba(0,0,0,.15);
+  cursor: pointer; pointer-events: auto !important; z-index: 2000;
+  transition: transform .2s ease, background .2s ease;
 }
-.nav-arrow-right {
-  right: 16px;
-}
+.click-zone:hover { background: #0e2962; transform: scale(1.06); }
 
-.nav-arrow:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+/* Si quieres que no se vea (solo hotspot invisible): */
+/* .click-zone { background: transparent; border: 2px dashed rgba(36,200,193,.6); } */
 
-/* ========================
-   Responsive móvil
-======================== */
+/* =============== BLOQUEO DE CLICS GENERALES =============== */
+.book, .page-wrapper, .book-page { pointer-events: none !important; user-select: none !important; }
+.nav-arrow, .page-indicator, .book-mode-toggle, .click-zone { pointer-events: auto !important; }
+.flip-wrap { touch-action: none; }
+
+/* =============== RESPONSIVE =============== */
 @media (max-width: 600px) {
-  .book-shell {
-    height: 100svh;
-    min-height: 100svh;
-  }
-  .flip-wrap {
-    min-height: 100svh;
-  }
-  .book-viewer-pdf {
-    max-width: 100vw;
-    min-width: 0;
-  }
-  .book {
-    max-width: 98vw !important;
-    min-width: 0;
-  }
-  .nav-arrow {
-    width: 38px;
-    height: 38px;
-    font-size: 1.3rem;
-  }
+  .flip-wrap { padding: 20px; transform: scale(.85); }
+  .nav-arrow { width: 38px; height: 38px; font-size: 1.4rem; }
+  .page-indicator-top { bottom: 16px; top: auto; font-size: .9rem; padding: 4px 10px; }
 }
 
-/* ========================
-   Forzar horizontal en retrato
-======================== */
+/* =============== (Opcional) FORZAR HORIZONTAL EN RETRATO =============== */
 .force-landscape {
   transform: rotate(90deg);
   transform-origin: center center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  --sx: calc(100svh / var(--book-h));
-  --sy: calc(100svw / var(--book-w));
+  display: flex; align-items: center; justify-content: center;
+  --sx: calc(100svh / var(--book-h)); --sy: calc(100svw / var(--book-w));
   scale: min(var(--sx), var(--sy));
-}
-
-/* ========================
-   Aviso girar teléfono
-======================== */
-.rotate-hint {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.7);
-  color: #fff;
-  padding: 16px 20px;
-  border-radius: 14px;
-  z-index: 300;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  animation: fadeIn 0.4s ease-in-out;
-}
-
-.rotate-icon {
-  font-size: 2.5rem;
-  margin-bottom: 8px;
-  animation: rotatePhone 2.5s infinite ease-in-out;
-}
-
-.rotate-text {
-  font-size: 1.1rem;
-  font-weight: 500;
-}
-
-@keyframes rotatePhone {
-  0% {
-    transform: rotate(0deg);
-  }
-  25% {
-    transform: rotate(90deg);
-  }
-  50% {
-    transform: rotate(0deg);
-  }
-  75% {
-    transform: rotate(-90deg);
-  }
-  100% {
-    transform: rotate(0deg);
-  }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-/* =========================================================
-   🔹 EFECTO DE TAPA CAYENDO DESDE ARRIBA (CIERRE VERTICAL 3D)
-========================================================= */
-.page-flip-back {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: var(--book-w);
-  height: var(--book-h);
-  background-color: #fff;
-  background-size: cover;
-  background-position: center;
-  border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
-  z-index: 130;
-  backface-visibility: hidden;
-  transform-origin: center top;
-  transform: translate(-50%, -50%) perspective(1600px) rotateX(-180deg);
-  animation: pageFlipDown 1.2s ease-in-out forwards;
-}
-
-.page-flip-back::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.4), transparent 70%);
-  opacity: 0;
-  animation: flipShadowDown 1.2s ease-in-out forwards;
-  border-radius: 8px;
-  pointer-events: none;
-}
-
-@keyframes pageFlipDown {
-  0% {
-    transform: translate(-50%, -50%) perspective(1600px) rotateX(-180deg);
-    opacity: 0.9;
-  }
-  40% {
-    transform: translate(-50%, -50%) perspective(1600px) rotateX(-90deg);
-    opacity: 1;
-  }
-  100% {
-    transform: translate(-50%, -50%) perspective(1600px) rotateX(0deg);
-    opacity: 1;
-  }
-}
-
-@keyframes flipShadowDown {
-  0% {
-    opacity: 0.7;
-  }
-  40% {
-    opacity: 0.5;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-
-/* =========================================================
-   ✅ CLICK-ZONES FUNCIONALES SOBRE PDF
-========================================================= */
-.page-wrapper canvas {
-  pointer-events: none !important;
-}
-
-.page-container {
-  position: relative;
-  width: 100%;
-  height: 100%;
-}
-
-.click-zone {
-  position: absolute;
-  cursor: pointer;
-  z-index: 999;
-  transform: translate(-50%, -50%);
-  border: 2px dashed rgba(255, 0, 0, 0.5);
-  background: rgba(255, 0, 0, 0.15);
-  transition: 0.2s ease;
-}
-
-.click-zone:hover {
-  background: rgba(255, 0, 0, 0.3);
-  border-color: red;
-}
-
-.click-zone.invisible {
-  background: transparent;
-  border: none;
-}
-/* =========================================================
-   📚 BOTONES DE MODO DE VISTA
-========================================================= */
-.book-mode-toggle {
-  position: absolute;
-  top: 14px;
-  right: 16px;
-  display: flex;
-  gap: 8px;
-  z-index: 999;
-
-  .mode-btn {
-    background: #ffffff;
-    border: 1.8px solid #c5c5c5;
-    border-radius: 8px;
-    padding: 6px;
-    cursor: pointer;
-    transition: 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    &:hover {
-      background: #f0f0f0;
-      transform: scale(1.05);
-    }
-
-    &.active {
-      background: #0e2962;
-      color: #fff;
-      border-color: #0e2962;
-    }
-  }
-}
-
-/* =========================================================
-   🔹 FLECHAS FUERA DEL CONTENEDOR DEL LIBRO
-========================================================= */
-.nav-arrow {
-  position: fixed !important;
-  top: 50%;
-  transform: translateY(-50%);
-  background: rgba(255, 255, 255, 0.95);
-  border: none;
-  border-radius: 50%;
-  width: 52px;
-  height: 52px;
-  font-size: 2.2rem;
-  color: #222;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-  cursor: pointer;
-  z-index: 1500;
-  transition: transform 0.2s ease, background 0.2s ease;
-
-  &:hover {
-    transform: translateY(-50%) scale(1.1);
-    background: #24c8c1;
-    color: #fff;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-}
-
-.nav-arrow-left {
-  left: 30px;
-}
-.nav-arrow-right {
-  right: 30px;
-}
-/* =========================================================
-   🎚️ Vista de una página vs doble página (solo visual)
-========================================================= */
-.book.double-view {
-  width: 100% !important;
-  transform: translateX(0) scale(1);
-  transition: all 0.35s ease;
-}
-
-/* 🔹 Modo una página */
-.book.single-view {
-  width: 50% !important; /* muestra solo una “hoja” */
-  transform: translateX(-25%) scale(1.05); /* centrada y un poco más grande */
-  transition: all 0.35s ease;
-}
-
-/* Ajuste para centrar mejor el contenido en pantallas pequeñas */
-@media (max-width: 900px) {
-  .book.single-view {
-    width: 85% !important;
-    transform: translateX(0) scale(1);
-  }
-}
-.book-loading {
-  position: absolute;
-  inset: 0;
-  background: rgba(255, 255, 255, 0.95);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.1rem;
-  color: #333;
-  z-index: 999;
-  animation: fadeIn 0.3s ease;
-}
-/* =========================================================
-   🚫 Desactivar totalmente el clic dentro del libro
-========================================================= */
-
-/* Bloquea interacciones dentro de las páginas */
-.book,
-.page-wrapper,
-.no-click,
-.book-page {
-  pointer-events: none !important;
-  user-select: none !important;
-}
-
-/* Permite clics SOLO en elementos de control */
-.nav-arrow,
-.page-indicator,
-.book-mode-toggle,
-.click-zone {
-  pointer-events: auto !important;
-}
-
-/* Evita tap accidental en móviles */
-.flip-wrap {
-  touch-action: none;
 }
