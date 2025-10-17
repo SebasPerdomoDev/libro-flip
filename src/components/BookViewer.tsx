@@ -11,6 +11,8 @@ import type { ReactNode } from "react";
 import HTMLFlipBook from "react-pageflip";
 import { Maximize2, Minimize2 } from "lucide-react";
 import ColoringModal from "./ColoringModal";
+import Galaxy from "./animation/Galaxy";
+
 
 /* ---------- Props ---------- */
 interface PagePaperProps {
@@ -211,6 +213,18 @@ export default function BookViewer({ totalPages, basePath }: BookViewerProps) {
   return (
     <>
       <div className="book-shell" ref={shellRef}>
+        {/* 🌌 Fondo animado */}
+        <Galaxy
+          mouseRepulsion={false}
+          mouseInteraction={false}
+          density={1.2}
+          glowIntensity={0.2}
+          saturation={0.0}
+          hueShift={0}
+          transparent={false}
+          starSpeed={0.15}
+          rotationSpeed={0.03} 
+        />
         {/* 🔘 Botones de vista */}
         <div className="book-mode-toggle">
           <button
@@ -238,10 +252,10 @@ export default function BookViewer({ totalPages, basePath }: BookViewerProps) {
             ["--zoom" as any]: visualZoom,
           } as any}
         >
-          <HTMLFlipBook
+            <HTMLFlipBook
             key={viewMode}
             ref={flipRef}
-            className="book shadow"
+            className={`book shadow ${viewMode === "single" ? "single-view" : "double-view"}`}
             width={bookW}
             height={bookH}
             size="fixed"
