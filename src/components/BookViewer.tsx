@@ -9,11 +9,9 @@ import {
 } from "react";
 import type { ReactNode } from "react";
 import HTMLFlipBook from "react-pageflip";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { SlBookOpen, SlNotebook } from "react-icons/sl";
 import ColoringModal from "./ColoringModal";
-import Galaxy from "./animation/GalaxyBackground";
 import GalaxyBackground from "./animation/GalaxyBackground";
-
 
 /* ---------- Props ---------- */
 interface PagePaperProps {
@@ -75,10 +73,9 @@ export default function BookViewer({ totalPages, basePath }: BookViewerProps) {
   const [isMobile, setIsMobile] = useState(false);
   const [editing, setEditing] = useState(false);
   const [inputValue, setInputValue] = useState("");
-  const [fadeClass, setFadeClass] = useState(""); // 🆕 control animación
+  const [fadeClass, setFadeClass] = useState("");
   const [viewMode, setViewMode] = useState<"single" | "double">("double");
 
-  /* 🎨 Modal */
   const [showActivity, setShowActivity] = useState(false);
   const [activityId, setActivityId] = useState<string | null>(null);
 
@@ -91,7 +88,7 @@ export default function BookViewer({ totalPages, basePath }: BookViewerProps) {
     setActivityId(null);
   };
 
-  /* 📏 Resize */
+  /* Resize */
   const doResize = useCallback(() => {
     if (!shellRef.current) return;
     const shell = shellRef.current.getBoundingClientRect();
@@ -120,13 +117,13 @@ export default function BookViewer({ totalPages, basePath }: BookViewerProps) {
     };
   }, [doResize]);
 
-  /* 📚 Lista de imágenes */
+  /* Lista de imágenes */
   const pages = useMemo(
     () => Array.from({ length: totalPages }, (_, i) => `${basePath}${i + 1}.webp`),
     [basePath, totalPages]
   );
 
-  /* 👁️ Control de render */
+  /* Control de render */
   const visiblePages = useMemo(() => {
     if (viewMode === "single") return new Set(pages.map((_, i) => i));
     const prev = Math.max(currentPage - 1, 0);
@@ -134,14 +131,14 @@ export default function BookViewer({ totalPages, basePath }: BookViewerProps) {
     return new Set([prev, currentPage, next]);
   }, [currentPage, totalPages, viewMode, pages]);
 
-  /* 🔄 Precarga siguiente página */
+  /* Precarga siguiente página */
   useEffect(() => {
     const next = Math.min(currentPage + 1, totalPages - 1);
     const img = new Image();
     img.src = pages[next];
   }, [currentPage, pages, totalPages]);
 
-  /* 🔍 Navegación */
+  /* Navegación */
   const goPrev = () => {
     const api = flipRef.current?.pageFlip?.();
     if (api && currentPage > 0) api.flipPrev();
@@ -163,11 +160,11 @@ export default function BookViewer({ totalPages, basePath }: BookViewerProps) {
     const num = parseInt(inputValue, 10);
     if (!isNaN(num)) {
       goToPage(num);
-      handleCloseSearch(); // 🆕 cierre con animación
+      handleCloseSearch();
     }
   };
 
-  /* 🆕 función para cerrar con animación */
+  /* función para cerrar con animación */
   const handleCloseSearch = () => {
     setFadeClass("fade-out");
     setTimeout(() => {
@@ -176,7 +173,7 @@ export default function BookViewer({ totalPages, basePath }: BookViewerProps) {
     }, 150);
   };
 
-  /* ⚙️ Mantener página al cambiar vista */
+  /* Mantener página al cambiar vista */
   useEffect(() => {
     const timer = setTimeout(() => {
       const api = flipRef.current?.pageFlip?.();
@@ -187,7 +184,7 @@ export default function BookViewer({ totalPages, basePath }: BookViewerProps) {
     return () => clearTimeout(timer);
   }, [viewMode, currentPage]);
 
-  /* 🆕 Cerrar buscador al hacer clic fuera */
+  /* Cerrar buscador al hacer clic fuera */
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
@@ -214,7 +211,6 @@ export default function BookViewer({ totalPages, basePath }: BookViewerProps) {
   return (
     <>
       <div className="book-shell" ref={shellRef}>
-        {/* 🌌 Fondo animado */}
         <GalaxyBackground
           mouseRepulsion={false}
           mouseInteraction={false}
@@ -226,25 +222,23 @@ export default function BookViewer({ totalPages, basePath }: BookViewerProps) {
           starSpeed={0.15}
           rotationSpeed={0.03} 
         />
-        {/* 🔘 Botones de vista */}
         <div className="book-mode-toggle">
           <button
             className={`mode-btn ${viewMode === "double" ? "active" : ""}`}
             onClick={() => setViewMode("double")}
             title="Vista doble página"
           >
-            <Maximize2 size={18} />
+            <SlBookOpen size={18} />
           </button>
           <button
             className={`mode-btn ${viewMode === "single" ? "active" : ""}`}
             onClick={() => setViewMode("single")}
             title="Vista una sola página"
           >
-            <Minimize2 size={18} />
+            <SlNotebook size={18} />
           </button>
         </div>
 
-        {/* 📖 Libro */}
         <div
           className={`flip-wrap ${isPortrait ? "force-landscape" : ""}`}
           style={{
@@ -253,7 +247,7 @@ export default function BookViewer({ totalPages, basePath }: BookViewerProps) {
             ["--zoom" as any]: visualZoom,
           } as any}
         >
-            <HTMLFlipBook
+          <HTMLFlipBook
             key={viewMode}
             ref={flipRef}
             className={`book shadow ${viewMode === "single" ? "single-view" : "double-view"}`}
@@ -289,7 +283,6 @@ export default function BookViewer({ totalPages, basePath }: BookViewerProps) {
           </HTMLFlipBook>
         </div>
 
-        {/* Flechas */}
         <button
           className="nav-arrow nav-arrow-left"
           onClick={goPrev}
@@ -305,9 +298,8 @@ export default function BookViewer({ totalPages, basePath }: BookViewerProps) {
           →
         </button>
 
-        {/* 📄 Indicador */}
         <div
-          className={`page-indicator page-indicator-top ${fadeClass}`} // 🆕
+          className={`page-indicator page-indicator-top ${fadeClass}`}
           ref={searchRef}
           onClick={() => {
             if (!editing) {
